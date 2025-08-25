@@ -1,0 +1,348 @@
+#+TITLE: Neovim on Linux — Complete IDE Tutorial
+#+AUTHOR: Tony, btw
+#+DATE: 2025-05-10
+#+HUGO_CUSTOM_FRONT_MATTER: :image "/img/neovim.png" :showTableOfContents true
+#+HUGO_BASE_DIR: ~/www/tonybtw.com
+#+HUGO_SECTION: tutorial/neovim
+#+EXPORT_FILE_NAME: index
+#+OPTIONS: toc:nil broken-links:mark
+#+HUGO_AUTO_SET_HEADLINE_SECTION: nil
+#+HUGO_TITLE: Neovim | Complete IDE Tutorial
+#+DESCRIPTION: A quick and painless guide on installing and configuring Neovim, and how to use it as your full daily driver IDE, btw.
+#+IMAGE: /img/neovim.png
+
+* Intro
+
+A clean and painless guide to turning Neovim into a modern IDE.
+
+Neovim is a Vim-based text editor built for extensibility and usability. In this tutorial, you’ll learn how to set it up with plugins, keybinds, and full LSP support. This guide assumes you're using a Unix-like system and are comfortable with basic terminal commands.
+
+* Install Neovim and dependencies
+
+Use your system’s package manager to install Neovim, along with a few tools that will be required later (like npm and ripgrep).
+
+#+begin_src sh
+# Gentoo
+sudo emerge app-editors/neovim
+sudo emerge net-libs/nodejs
+sudo emerge sys-apps/ripgrep
+
+# Arch
+sudo pacman -S neovim nodejs npm ripgrep
+#+end_src
+
+* Set up your Neovim config directory
+
+Create your config folder and add the main config file.
+
+#+begin_src sh
+mkdir -p ~/.config/nvim
+cd ~/.config/nvim
+nvim .
+#+end_src
+
+In Neovim, press =%= to create a new file named =init.lua=:
+
+#+begin_src lua
+print("I use Neovim by the way")
+#+end_src
+
+Save and quit with =:wq=, then reopen Neovim.
+
+* Create a Lua module for options
+
+#+begin_src sh
+mkdir -p ~/.config/nvim/lua/config
+nvim lua/config/options.lua
+#+end_src
+
+#+begin_src lua
+vim.opt.number = true
+vim.opt.relativenumber = true
+vim.opt.cursorline = true
+vim.opt.shiftwidth = 4
+#+end_src
+
+Then in =init.lua=:
+
+#+begin_src lua
+require("config.options")
+#+end_src
+
+* Add keybindings
+
+#+begin_src lua
+vim.g.mapleader = " "
+vim.keymap.set("n", "<leader>cd", vim.cmd.Ex)
+#+end_src
+
+In =init.lua=:
+
+#+begin_src lua
+require("config.keybinds")
+#+end_src
+
+* Install Lazy.nvim
+
+Clone it into your runtime path.
+
+#+begin_src lua
+local lazypath = vim.fn.stdpath("data") .. "/lazy/lazy.nvim"
+if not vim.loop.fs_stat(lazypath) then
+  vim.fn.system({
+    "git",
+    "clone",
+    "--filter=blob:none",
+    "https://github.com/folke/lazy.nvim.git",
+    "--branch=stable",
+    lazypath,
+  })
+end
+vim.opt.rtp:prepend(lazypath)
+
+require("lazy").setup({})
+#+end_src
+
+Then:
+
+#+begin_src lua
+require("config.lazy")
+#+end_src
+
+* Add a theme plugin
+
+#+begin_src lua
+return {
+  "folke/tokyonight.nvim",
+  config = function()
+    vim.cmd.colorscheme("tokyonight")
+  end,
+}
+#+end_src
+
+* Add Telescope for fuzzy finding
+
+#+begin_src lua
+return {
+  "nvim-telescope/telescope.nvim",
+  dependencies = { "nvim-lua/plenary.nvim" },
+  config = function()
+    local builtin = require("telescope.builtin")
+    vim.keymap.set("n", "<leader>ff", builtin.find_files)
+    vim.keymap.set("n", "<leader>fg", builtin.live_grep)
+    vim.keymap.set("n", "<leader>fb", builtin.buffers)
+    vim.keymap.set("n", "<leader>fh", builtin.help_tags)
+  end,
+}
+#+end_src
+
+* Add Treesitter for syntax highlighting
+
+#+begin_src lua
+return {
+  "nvim-treesitter/nvim-treesitter",
+  build = ":TSUpdate",
+  config = function()
+    require("nvim-treesitter.configs").setup({
+      highlight = { enable = true },
+      indent = { enable = true },
+      ensure_installed = { "lua" },
+      auto_install = false,
+    })
+  end,
+}
+#+end_src
+
+* Add Harpoon for file bookmarking
+
+#+begin_src lua
+return {
+  "ThePrimeagen/harpoon",
+  config = function()
+    local harpoon = require("harpoon")
+    vim.keymap.set("n", "<leader>a", function() harpoon:list():add() end)
+    vim.keymap.set("n", "<C-e>", function() harpoon.ui:toggle_quick_menu(harpoon:list()) end)
+  end,
+}
+#+end_src
+
+* Add LSP, autocompletion, and snippets
+
+#+begin_src lua
+return {
+  "neovim/nvim-lspconfig",
+  dependencies = {
+    "williamboman/mason.nvim",
+    "hrsh7th/nvim-cmp",
+    "L3MON4D3/LuaSnip",
+  },
+  config = function()
+    require("mason").setup()
+    require("mason-lspconfig").setup({ ensure_installed = { "lua_ls" } })
+
+    local lspconfig = require("lspconfig")
+    lspconfig.lua_ls.setup({})
+
+    local cmp = require("cmp")
+    cmp.setup({
+      snippet = {
+        expand = function(args)
+          require("luasnip").lsp_expand(args.body)
+        end,
+      },
+      mapping = cmp.mapping.preset.insert({
+        ["<Tab>"] = cmp.mapping.select_next_item(),
+        ["<S-Tab>"] = cmp.mapping.select_prev_item(),
+      }),
+      sources = { { name = "nvim_lsp" }, { name = "luasnip" } },
+    })
+  end,
+}
+#+end_src
+
+* One-liner utility plugins
+
+#+begin_src lua
+return {
+  { "tpope/vim-fugitive" },
+  { "ojroques/nvim-osc52" },
+  {
+    "norcalli/nvim-colorizer.lua",
+    config = function()
+      require("colorizer").setup()
+    end,
+  },
+}
+#+end_src
+
+* Final =init.lua= Example
+
+#+begin_src lua
+require("config.options")
+require("config.keybinds")
+require("config.lazy")
+#+end_src
+#+begin_src sh
+/home/tony/.config/nvim
+├── init.lua
+├── lazy-lock.json
+├── lua
+│   ├── config
+│   │   ├── keybinds.lua
+│   │   ├── lazy.lua
+│   │   └── options.lua
+│   └── plugins
+│       ├── colors.lua
+│       ├── harpoon.lua
+│       ├── init.lua
+│       ├── lsp.lua
+│       ├── lualine.lua
+│       ├── one-liners.lua
+│       ├── orgmode.lua
+│       ├── telescope.lua
+│       └── treesitter.lua
+├── plugin
+│   └── flterm.lua
+└── README.md
+
+5 directories, 16 files
+
+#+end_src
+
+* My keybinds
+
+If you want to just copy my nvim config, my keybind documentation is here:
+
+** General
+
+| Mode | Key             | Action                                                 |
+|------+-----------------+--------------------------------------------------------|
+| n    | <leader>cd      | Open Ex mode (`:Ex`)                                   |
+| n    | J               | Join lines while keeping the cursor in place           |
+| n    | <C-d>           | Scroll half-page down and center cursor                |
+| n    | <C-u>           | Scroll half-page up and center cursor                  |
+| n    | n               | Next search result (centered)                          |
+| n    | N               | Prev search result (centered)                          |
+| n    | Q               | Disable Ex mode                                        |
+| n    | <C-k>           | Next quickfix entry (centered)                         |
+| n    | <C-j>           | Prev quickfix entry (centered)                         |
+| n    | <leader>k       | Next location list entry (centered)                    |
+| n    | <leader>j       | Prev location list entry (centered)                    |
+| i    | <C-c>           | Exit insert mode                                       |
+| n    | <leader>x       | Make current file executable                           |
+| n    | <leader>u       | Toggle Undotree                                        |
+| n    | <leader>rl      | Reload config                                          |
+| n    | <leader><leader>| Source current file                                    |
+
+** Visual Mode
+
+| Mode | Key         | Action                                      |
+|------+-------------+---------------------------------------------|
+| v    | J           | Move block down                             |
+| v    | K           | Move block up                               |
+| x    | <leader>p   | Paste without overwriting clipboard         |
+| v    | <leader>y   | Yank to system clipboard                    |
+
+** Linting & Formatting
+
+| Mode | Key      | Action                          |
+|------+----------+---------------------------------|
+| n    | <leader>cc | Run php-cs-fixer              |
+| n    | <F3>     | Format (LSP)                    |
+
+** Telescope
+
+| Mode | Key         | Action                                  |
+|------+-------------+-----------------------------------------|
+| n    | <leader>ff  | Find files                              |
+| n    | <leader>fg  | Git-tracked files                       |
+| n    | <leader>fo  | Recent files                            |
+| n    | <leader>fq  | Quickfix list                           |
+| n    | <leader>fh  | Help tags                               |
+| n    | <leader>fb  | Buffers                                 |
+| n    | <leader>fs  | Grep string under cursor                |
+| n    | <leader>fc  | Grep current filename (no extension)    |
+| n    | <leader>fi  | Search in ~/.config/nvim                |
+
+** Harpoon
+
+| Mode | Key         | Action                           |
+|------+-------------+----------------------------------|
+| n    | <leader>a   | Add to Harpoon                   |
+| n    | <C-e>       | Toggle Harpoon quick menu        |
+| n    | <leader>fl  | Telescope Harpoon marks          |
+| n    | <C-p>       | Prev Harpoon mark                |
+| n    | <C-n>       | Next Harpoon mark                |
+
+** LSP
+
+| Mode     | Key     | Action                            |
+|----------+---------+-----------------------------------|
+| n        | K       | Hover docs                        |
+| n        | gd      | Go to definition                  |
+| n        | gD      | Go to declaration                 |
+| n        | gi      | Go to implementation              |
+| n        | go      | Go to type definition             |
+| n        | gr      | List references                   |
+| n        | gs      | Signature help                    |
+| n        | gl      | Show diagnostics float            |
+| n        | <F2>    | Rename symbol                     |
+| n,x      | <F3>    | Format code                       |
+| n        | <F4>    | Code actions                      |
+
+** Misc
+
+| Mode | Key         | Action                                     |
+|------+-------------+--------------------------------------------|
+| n    | <leader>dg  | Run DogeGenerate                           |
+| n    | <leader>s   | Replace word on current line               |
+
+
+* Final Thoughts
+
+You're now ready to use Neovim as a modern, fast, and extensible code editor.
+
+Thanks so much for checking out this tutorial. If you got value from it, and you want to find more tutorials like this, check out
+my youtube channel here: [[https://youtube.com/@tony-btw][YouTube]], or my website here: [[https://www.tonybtw.com][tony,btw]]
+
+You can support me here: [[https://ko-fi.com/tonybtw][kofi]]

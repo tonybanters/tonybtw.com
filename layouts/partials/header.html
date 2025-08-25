@@ -1,0 +1,230 @@
+<header class="site-header sticky z-30">
+  <div class="site-masthead">
+      <nav class="navbar container">
+        <!-- Logo -->
+        <div class="nav-logo">
+          <a class="navbar-brand" href="/">Tony, btw.</a>
+        </div>
+
+        <!-- Hamburger Toggler -->
+        <button id="nav-toggler" class="nav-toggle" aria-label="Open Mobile Menu">
+          <svg viewBox="0 0 20 20" class="hamburger-icon" fill="currentColor">
+            <path d="M0 3h20v2H0V3z m0 6h20v2H0V9z m0 6h20v2H0V0z"></path>
+          </svg>
+        </button>
+
+        <!-- Desktop Nav -->
+        <ul id="nav-menu" class="nav-menu">
+          <li class="nav-item"><a class="nav-link" href="/">Home</a></li>
+          <li class="nav-item"><a class="nav-link" href="/support/">Support</a></li>
+          <li class="nav-item"><a class="nav-link" href="/tutorial/">Tutorials</a></li>
+            <div class="nav-right">
+              <a href="https://discord.gg/CXAz6m4sWE" class="discord-desktop-btn" target="_blank" rel="noopener">
+                <!-- 💬 Join Discord -->
+                Join Discord
+              </a>
+            </div>
+        </ul>
+
+      </nav>
+    </div>
+</header>
+
+<!-- Mobile Nav -->
+<div id="mobile-nav-panel" class="mobile-nav hidden">
+  <ul class="mobile-nav-list">
+    <li><a class="mobile-nav-link" href="/">Home</a></li>
+    <li><a class="mobile-nav-link" href="/getting-involved/">Support</a></li>
+    <li><a class="mobile-nav-link" href="/tutorial/">Tutorials</a></li>
+    <li class="mobile-nav-link">
+      <a href="https://discord.gg/CXAz6m4sWE" target="_blank" rel="noopener">💬 Join Discord</a>
+    </li>
+  </ul>
+</div>
+
+<!-- Discord Desktop -->
+
+<style>
+
+.navbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end; /* <--- this aligns logo + nav to bottom */
+  padding: 1rem 0;
+}
+
+.nav-logo {
+  font-size: 1.75rem;
+  font-weight: bold;
+  margin: 0;
+  padding: 0;
+  line-height: 1;
+}
+
+.navbar-brand {
+  text-decoration: none;
+  color: white;
+}
+
+.nav-menu {
+  display: flex;
+  align-items: flex-end; /* ensure nav links align with logo */
+  gap: 1rem;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.navbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.nav-logo .navbar-brand {
+  font-size: 1.6rem;
+  font-weight: bold;
+  background: linear-gradient(to right, #7aa2f7, #ad8ee6);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  text-decoration: none;
+}
+
+.nav-menu {
+  display: none;
+  flex-direction: row;
+  list-style: none;
+  gap: 2rem;
+  padding-left: 0;
+}
+
+.nav-item {
+  display: inline-block;
+}
+
+.nav-link {
+  text-decoration: none;
+  color: #c0caf5;
+  padding: 0.5rem 1rem;
+}
+
+.nav-link:hover {
+  color: #7aa2f7;
+}
+
+.nav-toggle {
+  display: inline-block;
+  background: none;
+  border: none;
+  cursor: pointer;
+}
+
+.hamburger-icon {
+  width: 24px;
+  height: 24px;
+  color: #c0caf5;
+}
+
+.nav-right {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.theme-switcher {
+  background: none;
+  border: none;
+  cursor: pointer;
+}
+
+.discord-btn {
+  background-color: #7aa2f7;
+  color: #1a1b26;
+  padding: 0.4rem 0.8rem;
+  border-radius: 4px;
+  text-decoration: none;
+  font-weight: bold;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.discord-btn:hover {
+  background-color: #5e8eff;
+}
+
+/* Mobile nav panel */
+.mobile-nav {
+  background-color: #1a1b26;
+  padding: 1rem;
+}
+
+.mobile-nav-list {
+  list-style: none;
+  padding-left: 0;
+}
+
+.mobile-nav-link {
+  display: block;
+  padding: 0.5rem 0;
+  color: #c0caf5;
+  text-decoration: none;
+  border-bottom: 1px solid #292d3e;
+}
+
+.mobile-nav-link:hover {
+  color: #7aa2f7;
+}
+
+.hidden {
+  display: none !important;
+}
+
+/* Mobile only */
+@media (max-width: 768px) {
+  .nav-logo {
+    padding-left: 1rem; 
+  }
+  .nav-toggle {
+    padding-right: 1rem; 
+  }
+}
+
+/* Show desktop nav at large screens */
+@media screen and (min-width: 1024px) {
+  .nav-menu {
+    display: flex;
+  }
+
+  .nav-toggle {
+    display: none;
+  }
+
+  .mobile-nav {
+    display: none !important;
+  }
+}
+</style>
+
+<script>
+  const navToggler = document.getElementById('nav-toggler');
+  const mobileNav = document.getElementById('mobile-nav-panel');
+  navToggler?.addEventListener('click', () => {
+    mobileNav?.classList.toggle('hidden');
+  });
+
+  const themeSwitcherBtn = document.getElementById('theme-switcher-btn');
+  const applyTheme = (theme) => {
+    document.documentElement.classList.toggle('dark', theme === 'dark');
+  };
+  const toggleTheme = () => {
+    const isDark = document.documentElement.classList.toggle('dark');
+    localStorage.setItem('theme', isDark ? 'dark' : 'light');
+  };
+  const initialTheme = localStorage.getItem('theme') || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+  applyTheme(initialTheme);
+  document.addEventListener('DOMContentLoaded', () => {
+    themeSwitcherBtn?.addEventListener('click', toggleTheme);
+  });
+</script>

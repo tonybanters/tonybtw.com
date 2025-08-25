@@ -1,0 +1,24 @@
+# Ignore Hugo's generated public folder
+/public/
+
+# Ignore backup or temp files
+*~
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+
+# Ignore Hugo cache
+/resources/_gen/
+hugo_stats.json
+
+# Ignore logs or local env files
+.env
+*.log
+
+# Ignore OS crap
+ehthumbs.db
+Icon?
+.Trashes
+.Spotlight-V100
+
