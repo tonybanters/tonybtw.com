@@ -20,7 +20,10 @@
         <div class="column" style="flex: 1;">
           <article class="site-post">
             <h1 class="site-post-title center">{{ .Title }}</h1>
-            {{ with .Params.date }}<p class="site-post-meta center">{{ . }}</p>{{ end }}
+            {{ with .Params.date }}
+              <p class="site-post-meta center">{{ time.Format "01/02/2006" . }}</p>
+            {{ end }}
+
 
             {{ with .Params.image }}
               <div class="post-hero">
