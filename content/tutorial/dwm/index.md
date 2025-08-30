@@ -5,6 +5,7 @@ description: "A complete DWM setup on Arch Linux with minimal patches, autostart
 date: 2025-04-27
 draft: false
 image: "/img/dwm.png"
+video: "https://www.youtube.com/watch?v=46z_h4bNzjk"
 showTableOfContents: true
 ---
 

@@ -71,6 +71,8 @@ require("config.options")
 
 * Add keybindings
 
+Here is how I set my leader key:
+
 #+begin_src lua
 vim.g.mapleader = " "
 vim.keymap.set("n", "<leader>cd", vim.cmd.Ex)
