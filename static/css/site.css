@@ -300,6 +300,7 @@ kbd {
 }
 
 pre {
+  border: 1px solid var(--tokyonight-blue);
   background-color: #232635;
   padding: 1em;
   overflow-x: scroll;
@@ -383,6 +384,7 @@ strong {
   background-position: center;
   color: #1a1b26;
   border-bottom: 1px solid #292d3e;
+
 
   min-height: 160px;
   padding: 0; 

@@ -1,3 +1,14 @@
 baseURL = 'https://example.org/'
 languageCode = 'en-us'
 title = 'Tony, btw.'
+
+[markup.highlight]
+  # style = "rose-pine"      
+  # style = "tokyonight-moon"      
+  # style = "tokyonight-storm"      
+  # style = "tokyonight-night"      
+  style = "catppuccin-mocha"      
+  # style = "catppuccin-frappe"
+  # style = "catppuccin-macchiato"
+  # style = "rose-pine-moon"      
+  noClasses = true       # uses inline styles (easy, no CSS setup)
