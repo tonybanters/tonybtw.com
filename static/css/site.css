@@ -28,8 +28,6 @@
 @font-face {
   font-family: "JetBrainsMono Nerd Font";
   src: url('/fonts/JetBrainsMonoNerdFont-Regular.ttf') format('truetype');
-  /* src: url('/fonts/JetBrainsMonoNerdFontMono-Regular.ttf') format('truetype'); */
-  /* src: url("/fonts/JetBrainsMonoNerdFont-Regular.ttf") format("ttf"); */
   font-weight: normal;
   font-style: normal;
 }
@@ -41,7 +39,7 @@
 
 html {
   font-size: 16px;
-  font-weight: bold;
+  /* font-weight: bold; */
 }
 
 
@@ -168,7 +166,8 @@ html {
 body {
   background-color: var(--tokyonight-bg);
   color: var(--tokyonight-fg);
-  font-family: 'JetBrainsMono Nerd Font';
+  /* font-family: 'JetBrainsMono Nerd Font'; */
+  font-family: 'Jost', sans-serif;
   margin: 0;
   line-height: 1.5;
 }
@@ -249,11 +248,13 @@ h6 {
 h1 {
   color: var(--tokyonight-blue);
   font-size: 1.3rem;
+  font-family: sans-serif;
 }
 
 h2 {
   color: var(--cyn);
   line-height: 1.2;
+  font-family: sans-serif;
 }
 
 h3 {
@@ -388,6 +389,8 @@ strong {
 }
 
 .site-masthead {
+  font-family: sans-serif;
+  font-weight: bold;
   margin-bottom: 0; 
   background-color: rgba(28, 31, 38, 0.5);
   border-bottom: 0.05rem solid var(--cyn);
