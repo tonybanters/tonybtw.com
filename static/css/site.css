@@ -252,13 +252,13 @@ h6 {
 h1 {
   color: var(--tokyonight-blue);
   font-size: 1.3rem;
-  font-family: sans-serif;
+  font-family: 'Jost', sans-serif;
 }
 
 h2 {
   color: var(--cyn);
   line-height: 1.2;
-  font-family: sans-serif;
+  font-family: 'Jost', sans-serif;
 }
 
 h3 {
