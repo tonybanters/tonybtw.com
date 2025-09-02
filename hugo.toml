@@ -1,6 +1,7 @@
 baseURL = 'https://example.org/'
 languageCode = 'en-us'
 title = 'Tony, btw.'
+buildFuture = true
 
 [markup.highlight]
   # style = "rose-pine"      

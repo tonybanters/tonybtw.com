@@ -655,12 +655,41 @@ aside.content-panel {
 
 .tutorial-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  grid-template-columns: repeat(3, 1fr); /* max of 3 */
   gap: 2rem;
   max-width: 1280px;
   margin: 0 auto;
   padding: 0 1rem;
 }
+
+@media (max-width: 1024px) {
+  .tutorial-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 600px) {
+  .tutorial-grid {
+    grid-template-columns: 1fr;
+    overflow-x: auto;
+    scroll-snap-type: x mandatory;
+    display: grid;
+  }
+
+  .tutorial-card {
+    scroll-snap-align: start;
+  }
+}
+
+/* .tutorial-grid { */
+/*   display: grid; */
+/*   grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); */
+/*   gap: 2rem; */
+/*   max-width: 1280px; */
+/*   margin: 0 auto; */
+/*   padding: 0 1rem; */
+/* } */
+
 .tutorial-card-title {
   font-size: 1.2rem;
   color: #7aa2f7;
@@ -689,6 +718,7 @@ aside.content-panel {
 
 .tutorial-card {
   width: 426px;
+  /* max-width: 480px; */
   background-color: var(--blk);
   border: 1px solid var(--blu);
   border-radius: 8px;
