@@ -16,9 +16,8 @@ Disclaimer: This guide is heavily nix and programming oriented. If you aren't ta
 
 NixOS is great, but the hardest part of most people's journey into it is installing DWM, Dmenu, St, and other suckless utilities. This is because of how Nix stores binaries, and how there is no 'config file' with sucless software, in the same way as other software such as qtile, i3, hyprland, etc. This is by design, in a good way, because Suckless Software is meant to be minimal and extensible, so the source code is the config.
 
-```quote
-"Unfortunately, the tendency for complex, error-prone and slow software seems to be prevalent in the present-day software industry. We intend to prove the opposite with our software projects." - suckless philosophy
-```
+> "Unfortunately, the tendency for complex, error-prone and slow software seems to be prevalent in the present-day software industry. We intend to prove the opposite with our software projects."
+> – Suckless Philosophy
 
 Let's get into it.
 
