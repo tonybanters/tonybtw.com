@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1"
+    />
+    <meta
+      name="author"
+      content="{{ with .Params.author }}{{ . }}{{ else }}Tony, btw.{{ end }}"
+    />
+    <link rel="icon" type="image/png" href="/img/favicon.png" />
+    <!-- <link rel="stylesheet" href="/css/code.css" /> -->
+    <link rel="stylesheet" href="/css/site.css" />
+    <title>{{ .Title }}</title>
+  </head>
+  <body>
+
+    {{ partial "header.html" . }}
+
+    <main class="container">
+      <style>
+        p img {
+          display: block;
+          max-width: 80rem;
+          width: 100%;
+          height: auto;
+          margin: 1rem auto;
+          border-radius: 8px;
+        }
+      </style>
+      <div class="row" style="display: flex; align-items: flex-start; gap: 2rem;">
+
+        <!-- Main Content -->
+        <div class="column" style="flex: 1;">
+          <article class="site-post">
+            <h1 class="site-post-title center">{{ .Title }}</h1>
+
+            <p class="site-post-meta center">
+              {{ with .Params.author }}By {{ . }} · {{ end }}
+              {{ (.Date).Format "01/02/2006" }}
+            </p>
+
+            {{/* Pick screenshot/hero image from multiple possible params:
+                 1) .Params.images[0]
+                 2) .Params.image
+                 3) .Params.screenshot
+            */}}
+            {{ $img := "" }}
+            {{ with .Params.images }}{{ if gt (len .) 0 }}{{ $img = index . 0 }}{{ end }}{{ end }}
+            {{ if and (eq $img "") .Params.image }}{{ $img = .Params.image }}{{ end }}
+            {{ if and (eq $img "") .Params.screenshot }}{{ $img = .Params.screenshot }}{{ end }}
+
+            {{ with $img }}
+              <div class="post-hero">
+                <img src="{{ . | relURL }}" alt="{{ $.Title }}" loading="lazy" />
+              </div>
+            {{ end }}
+
+            {{ if .Params.video }}
+              <div class="video">
+                <iframe
+                  src="https://www.youtube.com/embed/{{ .Params.video }}"
+                  allowfullscreen
+                ></iframe>
+              </div>
+            {{ end }}
+
+            <div id="content" class="mb-10">
+              {{ .Content }}
+            </div>
+          </article>
+        </div>
+
+        <!-- Sidebar TOC -->
+        {{ if gt (len .TableOfContents) 80 }}
+          <aside class="content-panel"
+                 style="flex: 0 0 250px; max-width: 250px; position: sticky; top: 100px; align-self: flex-start;">
+            <div class="pb-3">
+              <strong class="text-xl">Table of Contents</strong>
+            </div>
+            <div id="tableOfContentContainer" style="max-height: calc(100vh - 8rem); overflow-y: auto;">
+              {{ .TableOfContents }}
+            </div>
+          </aside>
+        {{ end }}
+
+      </div>
+    </main>
+  </body>
+</html>
+

@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <link rel="icon" type="image/png" href="/img/favicon.png" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>{{ .Title }}</title>
+  <link rel="stylesheet" href="/css/site.css" />
+</head>
+<body>
+
+  {{ partial "header.html" . }}
+  <main class="container">
+    <h1 class="site-post-title center" style="margin-bottom: 2rem;">Community</h1>
+
+    <div class="tutorial-grid">
+      {{ $paginator := .Paginate .Pages }}
+      {{ range $page := $paginator.Pages }}
+        <div class="tutorial-card">
+          <!-- No image on cards for community -->
+          <h4 class="tutorial-card-title" style="margin-top:0;">
+            <a href="{{ $page.RelPermalink }}">{{ $page.Title }}</a>
+          </h4>
+          {{ with $page.Params.author }}
+            <p class="tutorial-card-author" style="margin:.15rem 0; color:#666;">By {{ . }}</p>
+          {{ end }}
+          <p class="tutorial-card-date">{{ $page.Date.Format "January 2, 2006" }}</p>
+          {{ with $page.Description }}
+            <p class="tutorial-card-description">{{ . }}</p>
+          {{ end }}
+        </div>
+      {{ end }}
+    </div>
+
+    {{ if gt $paginator.TotalPages 1 }}
+      <div style="margin-top: 2rem; text-align: center;">
+        {{ template "_internal/pagination.html" . }}
+      </div>
+    {{ end }}
+  </main>
+</body>
+</html>
+

@@ -3,6 +3,27 @@
 * About
 This is the source for [[https://tonybtw.com][tonybtw.com]], a Hugo-based static site.  
 The repository includes a =flake.nix= so you can get a reproducible Hugo environment with Nix.
+* Contributing
+There is a =/community/= section where people can share Linux tutorials, tips, or rices.
+
+1. Copy =example.md= from =content/community/= and rename it to your own article, e.g. =my-guide.md=.
+2. Edit the front matter and body to fit your content. Keep the same structure for consistency.
+   - Minimal front matter example:
+     #+BEGIN_SRC yaml
+     ---
+     title: "My Cool Setup"
+     author: "Your Name"
+     date: 2025-09-15
+     description: "A short blurb about your contribution."
+     image: "/img/community/your-name/screenshot.png"
+     ---
+     #+END_SRC
+3. Place any screenshots in your own folder under =static/img/community/<your-name>=.
+   - Example: =static/img/community/alice/my-screenshot.png=
+   - In your Markdown, reference them as =/img/community/alice/my-screenshot.png=.
+4. Submit a pull request with your Markdown file and images.
+
+This way, everyone’s contributions stay organized and easy to render.
 
 * Requirements
 - [[https://nixos.org/download.html][Nix]] installed  
