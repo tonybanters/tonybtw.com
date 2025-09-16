@@ -6,7 +6,7 @@ The repository includes a =flake.nix= so you can get a reproducible Hugo environ
 
 * Requirements
 - [[https://nixos.org/download.html][Nix]] installed  
-- Flakes enabled (add =experimental-features = nix-command flakes= to =~/.config/nix/nix.conf=)
+- Flakes enabled (=nix-command flakes=)
 
 * Usage
 Clone the repo and enter the development shell:
@@ -33,4 +33,59 @@ nix develop .#serve
 #+END_SRC
 
 This launches =hugo serve= right away.
+
+* Building for production
+To generate the static site in =public/=:
+
+#+BEGIN_SRC sh
+nix develop --command hugo
+#+END_SRC
+
+* Installing Nix and enabling flakes
+** NixOS
+1. On NixOS, Nix is already installed.  
+2. Enable flakes system-wide by adding to =/etc/nixos/configuration.nix= (or wherever your configuarion.nix is defined):  
+   #+BEGIN_EXAMPLE
+   experimental-features = nix-command flakes
+   #+END_EXAMPLE
+3. Rebuild your system if you use flakes for your config, or just restart shells for it to take effect.
+
+** Arch Linux
+1. Install Nix from the official repos:
+   #+BEGIN_SRC sh
+   sudo pacman -S nix
+   #+END_SRC
+2. Enable the Nix daemon:
+   #+BEGIN_SRC sh
+   sudo systemctl enable --now nix-daemon.service
+   #+END_SRC
+3. Add flake support to =~/.config/nix/nix.conf=:
+   #+BEGIN_EXAMPLE
+   experimental-features = nix-command flakes
+   #+END_EXAMPLE
+
+** Gentoo
+1. Enable the overlay and emerge Nix:
+   #+BEGIN_SRC sh
+   sudo emerge --ask app-misc/nix
+   #+END_SRC
+2. Enable the Nix daemon:
+   #+BEGIN_SRC sh
+   sudo rc-update add nix-daemon default
+   sudo rc-service nix-daemon start
+   #+END_SRC
+3. Add flake support to =~/.config/nix/nix.conf=:
+   #+BEGIN_EXAMPLE
+   experimental-features = nix-command flakes
+   #+END_EXAMPLE
+
+** macOS
+1. Install Nix using the official script (don’t use Homebrew):
+   #+BEGIN_SRC sh
+   curl -L https://nixos.org/nix/install | sh
+   #+END_SRC
+2. Enable flakes by editing =~/.config/nix/nix.conf= and adding:
+   #+BEGIN_EXAMPLE
+   experimental-features = nix-command flakes
+   #+END_EXAMPLE
 
