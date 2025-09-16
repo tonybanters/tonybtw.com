@@ -1,0 +1,36 @@
+#+TITLE: tonybtw.com
+
+* About
+This is the source for [[https://tonybtw.com][tonybtw.com]], a Hugo-based static site.  
+The repository includes a =flake.nix= so you can get a reproducible Hugo environment with Nix.
+
+* Requirements
+- [[https://nixos.org/download.html][Nix]] installed  
+- Flakes enabled (add =experimental-features = nix-command flakes= to =~/.config/nix/nix.conf=)
+
+* Usage
+Clone the repo and enter the development shell:
+
+#+BEGIN_SRC sh
+git clone https://github.com/tonybanters/tonybtw.com
+cd tonybtw.com
+nix develop
+#+END_SRC
+
+Inside the shell, run Hugo:
+
+#+BEGIN_SRC sh
+hugo serve
+#+END_SRC
+
+This starts the development server at http://localhost:1313.
+
+* Alternate dev shell
+If you prefer =nix= to start the server automatically:
+
+#+BEGIN_SRC sh
+nix develop .#serve
+#+END_SRC
+
+This launches =hugo serve= right away.
+
