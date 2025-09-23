@@ -30,7 +30,7 @@ You can use the graphical installer, but I'm going to use the minimal iso today,
 
 ### Load up Live ISO {#load-up-live-iso}
 
-Let's start by installing NixOS. I've loaded up the minimal ISO, and I have already created a video on installing NixOS like this, so I'll run through tihs part pretty quick. Feel free to follow along the written guide in the link below the subscribe button for this part.
+Let's start by installing NixOS. I've loaded up the minimal ISO, and I have already created a video on installing NixOS like this, so I'll run through this part pretty quick. Feel free to follow along the written guide in the link below the subscribe button for this part. (Fixed typo, thanks Tux for the reminder.)
 
 This set of commands is going to dictate what hardware.nix looks like. If you've installed arch before, a lot of this stuf will look familiar to you. Let's get into it.
 
