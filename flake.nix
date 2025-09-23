@@ -18,6 +18,7 @@
           default = pkgs.mkShell {
             packages = common_pkgs;
             shellHook = ''
+              export PS1="(tonybtw-dev) $PS1"
               echo "Hugo dev shell ready."
               hugo version
             '';
@@ -25,6 +26,7 @@
           serve = pkgs.mkShell {
             packages = common_pkgs;
             shellHook = ''
+              export PS1="(tonybtw-dev) $PS1"
               echo "Hugo dev shell ready."
               hugo serve
             '';
