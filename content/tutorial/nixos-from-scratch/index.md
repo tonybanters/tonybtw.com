@@ -48,7 +48,7 @@ gpt labels
 remaining space, type: Linux Filesystem
 ```
 
-Alright, let's sanity check that with an lsblk to confirm, and ther we go. We see our 3 partitions we just made. Let's make those file systems.
+Alright, let's sanity check that with an lsblk to confirm, and there we go. We see our 3 partitions we just made. Let's make those file systems. (Edited, thanks Tux for the reminder.)
 
 And the nixos handbook recommends we use labels for our partitions, so let's go ahead and do so.
 
