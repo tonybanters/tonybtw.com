@@ -51,7 +51,7 @@ Alright, let's start modifying dwl before we launch it.
 #### Arch Linux {#arch-linux}
 
 ```sh
-sudo pacman -S wayland wayland-protocols wlroots foot base-devel git wmenu wl-clipboard grim slurp swaybg firefox ttf-jetbrains-mono-nerd
+sudo pacman -S wayland wayland-protocols wlroots_0_19 foot base-devel git wmenu wl-clipboard grim slurp swaybg firefox ttf-jetbrains-mono-nerd
 ```
 
 
