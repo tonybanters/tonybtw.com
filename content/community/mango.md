@@ -4,55 +4,25 @@ description: "Your answer to DWM on Wayland"
 logo: /img/community/argos/mango-logo.png
 date: 2025-09-26
 author: 🐢 argos nothings
-tags: ["mango", "linux"]
-# Put this file at: content/community/<your-title>.md
-# Screenshots should live under: static/img/community/<your-name>/
+tags: ["mango", "linux", "compositors"]
+---
+> In this article I will attempt to define what makes a window manager "dynamic", as well as how to configure mango for those moving over from DWM
 ---
 
-> This is an example of how to contribute to the **community** section of tonybtw.com.
-> Share a Linux tip, a rice showcase, or a small guide others will enjoy.
+## Dynamic Window Managers
+What makes DWM different from i3? The first thing that may come to mind will likely be the process of patching a new feature into DWM, or editing your config through a header file. A philosophy around directness of software over usability; KISS at its truest. Is it simple to work with as a user? No. But it is *simple*.
 
----
+Unfortunately this has nothing to do with what makes something a dynamic compositor. So what is *dynamic*?
 
-## Short Description
-A lightweight DWM setup using JetBrainsMono Nerd Font, Gruvbox colors, and a few small patches.
 
-## Screenshots
-Place images in the repo at:
-```
-static/img/community/<your-name>/<file>.png
-```
+## Tags 
+hyprland has these. right?
+!["Hyprland has these! Right?"](/img/community/argos/scrshot1.png)
 
-Then reference them in your Markdown like this (Hugo will serve from `/img/...`):
-```
-![My DWM rice](/img/community/your-name/dwm-rice.png)
-```
-![Bugs DWM rice](/img/community/your-name/dwm-rice.png)
+At first glance what you are seeing appears to be a workspace with two windows in it, Side by side. But this is a bit of a farce. If you notice, there are, instead 2 highlighted numbers for your "workspace" bar.
 
-## What This Is
-- A quick write-up of your setup or tutorial.
-- Keep it reproducible and concise.
-- Link out to full dotfiles instead of dumping huge configs here.
+To work on this article I haven't created a special workspace for my workflow, but instead I have built it up from separate "tags". On demand. In these kinds of window managers tags allow you to dynamically view multiple windows from different tags at once, or you can treat tags exactly like workspaces and just switch to them one at a time.
 
-## Steps / Explanation
-1) Install DWM from source.
-
-2) Apply a couple of patches (e.g., vanity gaps, systray).  
-   Example snippet for fonts in `config.h`:
-```
-static const char *fonts[] = {
-    "JetBrainsMono Nerd Font Mono:style=Bold:size=14",
-};
-```
-
-3) Set some Gruvbox colors in `config.h`:
-```
-static const char col_gray1[] = "#282828";
-static const char col_gray2[] = "#3c3836";
-static const char col_gray3[] = "#ebdbb2";
-```
-
-4) Rebuild and start DWM. Include a short note on any keybinds you changed and why.
 
 ## Tips for Good Submissions
 - Use fenced code blocks (three backticks) for configs and commands.
