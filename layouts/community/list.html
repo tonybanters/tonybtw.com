@@ -28,6 +28,14 @@
           {{ with $page.Description }}
             <p class="tutorial-card-description">{{ . }}</p>
           {{ end }}
+        {{ with $page.Params.logo }}
+        <div style="position:relative; width: 0; height: 0">
+            <div class="tutorial-card-logo" style="position:absolute; left: 300px; bottom: 40px;">
+              <img src="{{ . | relURL }}" alt="{{ $page.Title }} logo" style="max-width: 100px; max-height: 64px;">
+            </div>
+        </div>
+
+          {{ end }}
         </div>
       {{ end }}
     </div>
