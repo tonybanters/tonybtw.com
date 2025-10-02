@@ -1,0 +1,388 @@
+#+title: How to Customize Vim in 2026
+#+author: Tony, btw
+#+date: 2025-10-01
+#+HUGO_TITLE: How to Customize Vim in 2026
+#+HUGO_FRONT_MATTER_FORMAT: yaml
+#+HUGO_CUSTOM_FRONT_MATTER: :image "/img/vim.png" :showTableOfContents true
+#+HUGO_BASE_DIR: ~/repos/tonybtw.com
+#+HUGO_SECTION: tutorial/vim
+#+EXPORT_FILE_NAME: index
+#+EXPORT_FILE_NAME: index
+#+OPTIONS: toc:nil broken-links:mark
+#+HUGO_AUTO_SET_HEADLINE_SECTION: nil
+#+DESCRIPTION: This is a quick and painless tutorial on how to get vanilla vim up and running.
+
+* Table of Contents :toc:
+- [[#intro][Intro]]
+- [[#install-dependencies-for-vim][Install Dependencies for Vim]]
+  - [[#arch-linux][Arch Linux]]
+  - [[#nixos][NixOS]]
+  - [[#gentoo][Gentoo]]
+- [[#create-config-file][Create config file]]
+- [[#bare-minimum-what-i-use-on-servers][Bare minimum (what i use on servers)]]
+- [[#modularize-options][Modularize options]]
+- [[#keybinds][Keybinds!]]
+- [[#plugins][Plugins]]
+  - [[#colorsvim][Colors.vim]]
+  - [[#fzf-file-searching][Fzf file searching]]
+  - [[#lightline][Lightline]]
+  - [[#lsp][LSP...]]
+- [[#outro][Outro]]
+
+* Intro
+What's up guys, my name is Tony, and today, I'm going to give you a quick and painless guide on Vim.
+
+Vim is a blazingly fast text editor that leverages different modes in order to facilitate a keyboard centric efficient experience.
+
+I use neovim on my main machine, but I find myself on servers a lot, or inside of install iso images, where I only have access to vi, or vim if I'm lucky. That's why I always keep my vanilla vim config up to date.
+
+* Install Dependencies for Vim
+
+To get things started, we're gonna need some dependencies. I have a written article to accompany this tutorial in a link below the subscribe button that will show you how to install these on your favorite operating system, but for today's guide, we're going to be using Arch, btw, so heres what we need:
+
+#+begin_src
+yay -S git vim ripgrep fd fzf rust-analzyer
+#+end_src
+
+- git
+- vim
+- ripgrep
+- fd
+- fzf
+- rust_analyzer
+
+** Arch Linux
+
+#+begin_src
+sudo pacman -S git vim ripgrep fd fzf rust-analyzer
+#+end_src
+
+** NixOS
+
+#+begin_src nix
+# vim.nix
+{ config, pkgs, lib, ...}
+
+{
+  # Install Vim and dependencies
+  home.packages = with pkgs; [
+    # Tools required for Telescope
+    ripgrep
+    fd
+    fzf
+    # Language Servers
+    rust-analzyer
+  ];
+
+  programs.git.enable = true;
+  programs.vim.enable = true;
+
+}
+#+end_src
+
+** Gentoo
+
+#+begin_src sh
+sudo emerge -q \
+  app-shells/fzf \
+  sys-apps/ripgrep \
+  sys-apps/fd \
+  dev-util/rust-analyzer \
+  app-editors/vim
+#+end_src
+
+* Create config file
+ls .vim
+mkdir .vim
+vim .vimrc
+
+#+begin_src vim
+echom "hello world"
+#+end_src
+
+We can use `:so` to source this file immediately
+and we see, 'hello world' in the console.
+
+lets add a print statement to vimrc inside of our .vim folder, so its easier to modularize.
+
+cd .vim
+vim vimrc
+
+#+begin_src vimrc
+echom "subsrcibe to my channel"
+#+end_src
+
+now in our ~/.vimrc, lets source this file
+
+#+begin_src vimrc
+echom "hello world"
+source ~/.vim/vimrc
+#+end_src
+
+Now vim will always load the ~/.vim/vimrc file when launched. we can test by running `vim`
+
+
+* Bare minimum (what i use on servers)
+
+this is my 8 line copy paste that i use on servers, or take with me in isos
+
+#+begin_src vim
+filetype plugin indent on
+set expandtab
+set shiftwidth=4
+set softtabstop=4
+set tabstop=4
+set number
+set relativenumber
+set smartindent
+set showmatch
+set backspace=indent,eol,start
+syntax on
+#+end_src
+
+This will get you by for like 90% of your needs, unless you are into lsps and programming. If you literally just tinker with config files, this is enough.
+
+Let's go further though.
+
+* Modularize options
+
+Let's move these options over to an options file, and lets also add a keybinds file.
+So, lets actually just yank this entire file, since its all options, and then lets press y to yank all of it. Now we can do :e options.vim, to create and open options.vim and just paste this here. we can save this new file with :w, and now if we hit control-o to get back to our vimrc, we can delete all of this by pressing shift v, shift g to highlight everything in visual mode, and press c to delete and enter insert mode, and lets just replace it with source options.vim. Now we can modularize everything and source it right in our vimrc.
+
+#+begin_src
+source ~/.vim/options.vim
+#+end_src
+
+* Keybinds!
+
+for keybinds, lets create a keybinds.vim file. let's just presource it here, since we know its coming.
+
+#+begin_src vim
+source ~/.vim/options.vim
+source ~/.vim/keybinds.vim
+#+end_src
+
+:e keybinds.vim
+
+Lets start by adding a leader key, its going to be the key that we press before hitting a keycombo in order to bind stuff.
+#+begin_src vim
+" Set leader key
+let mapleader = " "
+
+" Open netrw with <leader>cd
+nnoremap <leader>cd :Ex<CR>
+#+end_src
+
+Let's source this file with :so, and now we can test this bind here by pressing space cd (for change directory), and BOOM we're right in our netrw.
+
+We'll certainly add more keybinds later. Let's move onto plugins.
+
+* Plugins
+
+There is a plugin manager called 'plug', but I just wrote my own 6 line function to handle plugins. its a glorified wrapper for `git clone`. You guys can just paste it in here, I'll share it in a link below the subscribe button.
+
+#+begin_src vimscript
+let s:plugin_dir = expand('~/.vim/plugged')
+
+function! s:ensure(repo)
+  let name = split(a:repo, '/')[-1]
+  let path = s:plugin_dir . '/' . name
+
+  if !isdirectory(path)
+    if !isdirectory(s:plugin_dir)
+      call mkdir(s:plugin_dir, 'p')
+    endif
+    execute '!git clone --depth=1 https://github.com/' . a:repo . ' ' . shellescape(path)
+  endif
+
+  execute 'set runtimepath+=' . fnameescape(path)
+endfunction
+#+end_src
+
+We need to add this file to our vimrc like so:
+
+#+begin_src vimrc
+source ~/.vim/options.vim
+source ~/.vim/keybinds.vim
+source ~/.vim/plugins.vim
+#+end_src
+
+
+And to use this plugin script, all we need to do as add a plugin to the bottom like so:
+
+** Colors.vim
+
+First lets head over to this [[https://github.com/ghifarit53/tokyonight-vim][github link]] and take a look at this plugin. We have a simple colorscheme plugin here for the tokyonight flavor, we can yank this url here, and throw it in the bottom of our plugin.vim:
+
+#+begin_src vim
+call s:ensure('ghifarit53/tokyonight-vim')
+#+end_src
+
+And lets source this file, and we see that tokyonight starts to download. Now that its downloaded, we can see it worked by typing :colorscheme tokyonight.
+
+But lets add a custom colors.vim file to handle some options related to this plugin.
+
+:e colors.vim (or space cd, and %colors.vim)
+
+** Fzf file searching
+
+One of the best plugins for neovim besides treesitter is Telescope, but we can achieve the same thing in vanilla vim here with f (zed) f .vim
+
+#+begin_src
+call s:ensure('junegunn/fzf')
+call s:ensure('junegunn/fzf.vim')
+#+end_src
+Source this file now to install these with :so
+
+And let's create fzf.vim to setup some options and binds for it:
+:e fzf.vim
+
+#+begin_src
+" FZF keymaps (requires Plug 'junegunn/fzf.vim')
+
+" Files
+nnoremap <leader>ff :Files<CR>
+nnoremap <leader>fo :History<CR>
+nnoremap <leader>fb :Buffers<CR>
+nnoremap <leader>fq :CList<CR>    " For quickfix list
+nnoremap <leader>fh :Helptags<CR>
+
+" Grep current string
+nnoremap <leader>fs :Rg <C-r><C-w><CR>
+
+" Grep input string (fzf prompt)
+nnoremap <leader>fg :Rg<Space>
+
+" Grep for current file name (without extension)
+nnoremap <leader>fc :execute 'Rg ' . expand('%:t:r')<CR>
+
+" Find files in your Vim config
+nnoremap <leader>fi :Files ~/.vim<CR>
+#+end_src
+
+so now we can type space ff and we see our files. let's clean this up though, this is way too many files by default
+
+First lets change fzf to point to fd instead of find. This has to be done in our .bashrc, or .zshrc if you're into that
+
+#+begin_src bash
+export FZF_DEFAULT_COMMAND='fd --type f --hidden --follow'
+#+end_src
+
+Now we can create a file that tells fd what to ignore called `.fdignore` like so:
+
+vim ~/.fdignore
+
+And lets add these 3 folders to it:
+#+begin_src
+undodir/
+plugged/
+.git
+#+end_src
+
+Now lets source bash, and check it out, we only see our files in .vim that we want to see. We can do the same with rg... .rgignore
+
+Let's test rg by typing space fg and searching for vim. nice, we see 19 entries here.
+
+So this is pretty much my fzf.vim config
+
+** Lightline
+Let's get a powerline here:
+#+begin_src
+call s:ensure('itchyny/lightline.vim')
+#+end_src
+
+And lets import our lightline config like so:
+
+:e lightline.vim
+
+TODO Test minimalism
+
+#+begin_src
+set laststatus=2
+let g:lightline = {
+      \ 'colorscheme' : 'tokyonight',
+      \ 'active': {
+      \   'left': [ [ 'mode', 'paste' ],
+      \             [ 'gitbranch', 'readonly', 'filename', 'modified' ] ],
+      \   'right': [ [ 'lineinfo' ], [ 'fileformat', 'fileencoding', 'filetype' ] ]
+      \ },
+      \ 'component_function': {
+      \   'gitbranch': 'FugitiveHead',
+      \   'filename': 'LightlineFilename'
+      \ }
+      \ }
+
+function! LightlineFilename()
+  return expand('%:t') !=# '' ? expand('%:t') : '[No Name]'
+endfunction
+#+end_src
+
+Now we just need to add lightline to our vimrc, and we're good to go.
+
+#+begin_src
+source ~/.vim/lightline.vim
+#+end_src
+** LSP...
+Alright so this is the hard part. an lsp that works on vim!
+I've tried to make this as simple as possible so let's roll with it. First lets download this plugin:
+
+#+begin_src
+call s:ensure('yegappan/lsp')
+#+end_src
+
+Lets create our lsp.vim file, and just paste this in there (my lsp config)
+#+begin_src
+" Enable diagnostics highlighting
+let lspOpts = #{autoHighlightDiags: v:true}
+autocmd User LspSetup call LspOptionsSet(lspOpts)
+let lspServers = [
+      \ #{
+      \   name: 'rust-analyzer',
+      \   filetype: ['rust'],
+      \   path: 'rust-analyzer',
+      \   args: []
+      \ }
+      \ ]
+
+autocmd User LspSetup call LspAddServer(lspServers)
+
+" Key mappings
+nnoremap gd :LspGotoDefinition<CR>
+nnoremap gr :LspShowReferences<CR>
+nnoremap K  :LspHover<CR>
+nnoremap gl :LspDiag current<CR>
+nnoremap <leader>nd :LspDiag next \| LspDiag current<CR>
+nnoremap <leader>pd :LspDiag prev \| LspDiag current<CR>
+inoremap <silent> <C-Space> <C-x><C-o>
+
+" Set omnifunc for completion
+autocmd FileType php setlocal omnifunc=lsp#complete
+
+" Custom diagnostic sign characters
+autocmd User LspSetup call LspOptionsSet(#{
+    \   diagSignErrorText: '✘',
+    \   diagSignWarningText: '▲',
+    \   diagSignInfoText: '»',
+    \   diagSignHintText: '⚑',
+    \ })
+
+#+end_src
+
+You have to install rust_analyzer, I already have it installed, but on arch, we can do it like so:
+
+#+begin_src
+npm install -g rust_analzyer
+#+end_src
+
+And we see we have rust analyzer here, so lets open a rust project and test if its working.
+
+vim ~/repos/oxwm/src/main.rs
+and we can test hover with shift k, and if we add bad code here we should see an error.
+Bad Code
+And go to definition works!
+
+* Outro
+
+Alright, thats gonna be it for todays video. If you have any questions or recommendations on any other linux related content, as usual just drop a comment.
+
+It wouldn't be a proper video without an obligatory neofetch.
