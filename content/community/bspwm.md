@@ -1,6 +1,6 @@
 ---
 title: "BSPWM! A seamless guide to install BSPWM"
-date: 2025-09-29
+date: 2025-10-12
 author: NullSector-dev
 tags: ["bspwm", "window-manager", "linux/BSD", "guide"]
 ---
