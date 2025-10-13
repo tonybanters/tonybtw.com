@@ -2,12 +2,13 @@
 title: "BSPWM! A seamless guide to install BSPWM"
 date: 2025-10-12
 author: NullSector-dev
+# logo: /img/community/nullsector-dev/bspwm.png
 tags: ["bspwm", "window-manager", "linux/BSD", "guide"]
 ---
 
-![bspwmlogo](/img/community/nullsector-dev/bspwm.png)
+<!-- ![bspwmlogo](/img/community/nullsector-dev/bspwm.png) -->
 
-# What is BSPWM?
+## What is BSPWM?
 **BSPWM** or almost never known as _Binary Space Partioning Window Manager_, well it's a tiling window manager that represents windows as the leaves of a full binary tree.
 
 Key take aways:-
@@ -21,14 +22,14 @@ Here is a pictoral representaion of the process.
                (Input)        (Procces)        (Socket)      
 Keyboard/mouse -------> sxhkd ---------> bspc --------> bspwm
 ```
-# Prerequisite:-
+## Prerequisite:-
 1. Base installation of your preferred Operating System.
 2. A text editor of your choice, we'll be going with Vim in this guide.
 3. Patience.
 
 I'll be Guiding you to install it on FreeBSD/Archlinux but you may follow along even if you are on a different Operating System.
 
-# Installation & Configuration
+## Installation & Configuration
 
 Prior to installing dependencies update your system and the repos.
 ```bash
@@ -215,8 +216,11 @@ startx
 
 ## Links:
 [BSPWM](https://github.com/baskerville/bspwm)
+
 [SXHKD](https://github.com/baskerville/sxhkd)
+
 [Basic bspwm files](https://codeberg.org/NullSector-dev/basic_bspwm)
+
 [My Codeberg](https://codeberg.org/NullSector-dev)
 
 
