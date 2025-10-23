@@ -1,0 +1,4082 @@
+---
+title: "Linux From Scratch"
+author: ["Tony", "btw"]
+description: "This is a slow, and painful tutorial on how to install linux from scratch in 2026. We go over the entire lfs book, from 0 to booting into our LFS system. A challenging, but educational and rewarding process."
+date: 2025-10-22
+draft: false
+image: "/img/lfs.png"
+showTableOfContents: true
+---
+
+## Intro {#intro}
+
+What's up guys, my name is Tony, and today, I'm gonna give you a slow and painful guide on installing Linux from Scratch.
+
+
+## Chapter 1 - Introduction: {#chapter-1-introduction}
+
+
+### Install Gentoo ISO {#install-gentoo-iso}
+
+For the iso image, we're going to use the gentoo gui live cd, and drop into a tty immediatly, and ssh to it from another machine. This is because it will already have all of the required tools needed to compile all the software, and other than that it is relatively minimal.
+
+
+### Setup ISO, and enable SSH {#setup-iso-and-enable-ssh}
+
+Let's boot into our Gentoo Live CD. I see this kde nonsense, lets just drop into a tty right on with Control Alt F2, and lets do a few things.
+
+Let's begin by creating a root password on this machine, and switching to root, and enabling ssh. Now we check the ip here with ip a, and then we can ssh to it from our other machine.
+
+```sh
+sudo passwd root
+su
+rc-service sshd start
+ip a
+```
+
+ssh root@192.168.x.x
+
+
+### Testing Versions: {#testing-versions}
+
+We need to prepare for this by testing the versions of our toolchain. Let's run this script here on the lfs manual like so:
+
+And here's the output:
+
+```sh
+bash check-version.sh
+OK:    Coreutils 9.7    >= 8.1
+OK:    Bash      5.3.3  >= 3.2
+OK:    Binutils  2.45   >= 2.13.1
+OK:    Bison     3.8.2  >= 2.7
+OK:    Diffutils 3.12   >= 2.8.1
+OK:    Findutils 4.10.0 >= 4.2.31
+OK:    Gawk      5.3.2  >= 4.0.1
+OK:    GCC       14.3.1 >= 5.4
+OK:    GCC (C++) 14.3.1 >= 5.4
+OK:    Grep      3.12   >= 2.5.1a
+OK:    Gzip      1.14   >= 1.3.12
+OK:    M4        1.4.20 >= 1.4.10
+OK:    Make      4.4.1  >= 4.0
+OK:    Patch     2.8    >= 2.5.4
+OK:    Perl      5.40.2 >= 5.8.8
+OK:    Python    3.13.5 >= 3.4
+OK:    Sed       4.9    >= 4.1.5
+OK:    Tar       1.35   >= 1.22
+OK:    Texinfo   7.2    >= 5.0
+OK:    Xz        5.8.1  >= 5.0.0
+OK:    Linux Kernel 6.12.47 >= 5.4
+OK:    Linux Kernel supports UNIX 98 PTY
+Aliases:
+OK:    awk  is GNU
+OK:    yacc is Bison
+OK:    sh   is Bash
+Compiler check:
+OK:    g++ works
+OK: nproc reports 12 logical cores are available
+```
+
+And we are ready to move on to the next step.
+
+
+## Chapter 2 - Preparing the Host System: {#chapter-2-preparing-the-host-system}
+
+
+### Create Partitions {#create-partitions}
+
+This part might be familiar to those of you who have installed gentoo, arch, or even nix using the minimal iso. Let's hop into cfdisk and create our partitions.
+
+lsblk will tell us what our disk is named. Mine is /dev/vda
+Let's run cfdisk on /dev/vda, your disk might be named something else, such as /dev/sda
+Let's select gpt for the label type because we are on a UEFI system.
+
+For the partitions, let's create a 1G boot partition, a 4G swap partition, and the rest can be the root partition.
+
+Lets write and quit here, and move on to creating the filesystems
+
+```nil
+vda    252:0    0   50G  0 disk
+├─vda1 252:1    0    1G  0 part
+├─vda2 252:2    0    4G  0 part
+└─vda3 252:3    0   45G  0 part
+```
+
+
+### Make Filesystems {#make-filesystems}
+
+Lets make those filesystems.
+
+For the root partition:
+For the boot partition:
+And for that swap:
+
+```nil
+mkfs.ext4 /dev/vda3
+mkfs.fat -F 32 /dev/vda1
+mkswap /dev/vda2
+```
+
+```nil
+vda    252:0    0   50G  0 disk
+├─vda1 252:1    0    1G  0 part
+├─vda2 252:2    0    4G  0 part
+└─vda3 252:3    0   45G  0 part
+livecd ~ # mkfs.ext4 /dev/vda3
+mke2fs 1.47.3 (8-Jul-2025)
+Discarding device blocks: done
+Creating filesystem with 11795968 4k blocks and 2949120 inodes
+Filesystem UUID: cf482c8d-d5e7-4cd5-82b9-1fe1e21156e4
+Superblock backups stored on blocks:
+        32768, 98304, 163840, 229376, 294912, 819200, 884736, 1605632, 2654208,
+        4096000, 7962624, 11239424
+
+Allocating group tables: done
+Writing inode tables: done
+Creating journal (65536 blocks): done
+Writing superblocks and filesystem accounting information: done
+
+livecd ~ # mkfs.fat -F 32 /dev/vda1
+mkfs.fat 4.2 (2021-01-31)
+livecd ~ # mkswap /dev/vda2
+Setting up swapspace version 1, size = 4 GiB (4294963200 bytes)
+no label, UUID=9ad48deb-4292-4267-95a3-0b189a8d2acd
+livecd ~ #
+```
+
+Let's move on to mounting the filesystems.
+
+
+### Exporting $LFS and confirming Umask: {#exporting-lfs-and-confirming-umask}
+
+So this is where we deviate from the arch installs, and what have you. We need to export the $LFS variable here mainly for convenience, because we will be referencing the path of $LFS throughout this installation.
+
+So lets run
+
+```nil
+export LFS=/mnt/lfs
+```
+
+And we need to ensure \`umask\` is set to \`022\` so that newly created files and directories are only writable by their owner, but are readable and searchable by anyone.
+
+so lets run
+
+```sh
+umask 022
+```
+
+And we look good here, we can echo $LFS and we see umask is correct. Let's create the filesystems.
+
+
+### Mounting Partitions {#mounting-partitions}
+
+Let's create the directory here for lfs and mount it. We can run
+
+```nil
+mount --mkdir /dev/vda3 $LFS
+```
+
+And for our root partition:
+
+```sh
+mount --mkdir /dev/vda1 $LFS/boot/efi
+```
+
+And lastly, for our swap:
+
+```nil
+swapon /dev/vda2
+```
+
+We can confirm this worked with the following commands:
+
+```nil
+livecd ~ # mount | grep vda
+/dev/vda3 on /mnt/lfs type ext4 (rw,relatime)
+/dev/vda1 on /mnt/lfs/boot/efi type vfat (rw,relatime,fmask=0022,dmask=0022,codepage=437,iocharset=ascii,shortname=mixed,errors=remount-ro)
+livecd ~ # lsblk
+NAME   MAJ:MIN RM  SIZE RO TYPE MOUNTPOINTS
+vda    252:0    0   50G  0 disk
+├─vda1 252:1    0    1G  0 part /mnt/lfs/boot/efi
+├─vda2 252:2    0    4G  0 part [SWAP]
+└─vda3 252:3    0   45G  0 part /mnt/lfs
+```
+
+Following the book it suggests to chown the $LFS directory here:
+
+```nil
+chown root:root $LFS
+chmod 755 $LFS
+```
+
+And confirm with ls -la $LFS
+
+```nil
+livecd ~ # ls -la $LFS
+total 24
+drwxr-xr-x 4 root root  4096 Oct 17 05:05 .
+drwxr-xr-x 1 root root    60 Oct 17 05:03 ..
+drwxr-xr-x 3 root root  4096 Oct 17 05:05 boot
+drwx------ 2 root root 16384 Oct 17 04:48 lost+found
+```
+
+And it looks good to go! We are ready to move to Chapter 3. Sources.
+
+
+## Chapter 3 - Packages and Patches: {#chapter-3-packages-and-patches}
+
+
+### Sources: {#sources}
+
+We need to make a directory for the sources here, like so:
+
+```nil
+mkdir -v $LFS/sources
+```
+
+And we need to make it 'sticky', so that even if any user can have write permissions on a directory, only the owner can delete a file within the directory. We can achieve this with:
+
+```nil
+chmod -v a+wt $LFS/sources
+```
+
+Which will look like this:
+
+```nil
+livecd ~ # mkdir -v $LFS/sources
+mkdir: created directory '/mnt/lfs/sources'
+livecd ~ # chmod -v a+wt $LFS/sources
+mode of '/mnt/lfs/sources' changed from 0755 (rwxr-xr-x) to 1777 (rwxrwxrwt)
+livecd ~ #
+```
+
+
+### Retrieve wget-list and md5sums {#retrieve-wget-list-and-md5sums}
+
+Let's cd into the sources directory here and download the sources.
+
+```nil
+cd $LFS/sources
+```
+
+So we can grab all of the sources here from a wget list. let's wget the wget list (inception) like so: right click this link and copy link as, and do:
+
+Let's also grab the md5sums so we can verify the download succeeded with no corrupted data like so:
+
+```nil
+wget https://www.linuxfromscratch.org/lfs/view/12.4/wget-list-sysv
+wget https://www.linuxfromscratch.org/lfs/downloads/stable/md5sums
+```
+
+And our ouput should look like this:
+
+```nil
+livecd /mnt/lfs/sources # wget https://www.linuxfromscratch.org/lfs/view/12.4/wget-list-sysv
+--2025-10-17 09:14:50--  https://www.linuxfromscratch.org/lfs/view/12.4/wget-list-sysv
+Resolving www.linuxfromscratch.org... 208.118.68.85
+Connecting to www.linuxfromscratch.org|208.118.68.85|:443... connected.
+HTTP request sent, awaiting response... 200 OK
+Length: 6107 (6.0K)
+Saving to: ‘wget-list-sysv’
+
+wget-list-sysv                    100%[===========================================================>]   5.96K  --.-KB/s    in 0s
+
+2025-10-17 09:14:50 (9.62 GB/s) - ‘wget-list-sysv’ saved [6107/6107]
+```
+
+
+### Grab All Packages from wget-list {#grab-all-packages-from-wget-list}
+
+So we can see what this wget list is by running less on it, and we see its just a list of urls with each package we need. So let's just download them here with this wget command:
+
+And now for the fun part...
+
+```nil
+wget --input-file=wget-list-sysv --continue --directory-prefix=$LFS/sources
+```
+
+This will iterate through the wget list and grab all the files in it. I will see you in a minute.
+
+
+### Check md5sums: {#check-md5sums}
+
+Alright, looks like our wget command finished, so lets test the md5sums here, this will let us know if all of the packages are downloaded to, as well as confirm if any of them are corrupted or not.
+
+```nil
+md5sum -c md5sums | less
+```
+
+```nil
+acl-2.3.2.tar.xz: OK
+attr-2.5.2.tar.gz: OK
+autoconf-2.72.tar.xz: OK
+automake-1.18.1.tar.xz: OK
+bash-5.3.tar.gz: OK
+bc-7.0.3.tar.xz: OK
+binutils-2.45.tar.xz: OK
+bison-3.8.2.tar.xz: OK
+bzip2-1.0.8.tar.gz: OK
+coreutils-9.7.tar.xz: OK
+dejagnu-1.6.3.tar.gz: OK
+diffutils-3.12.tar.xz: OK
+e2fsprogs-1.47.3.tar.gz: OK
+elfutils-0.193.tar.bz2: OK
+expat-2.7.1.tar.xz: OK
+expect5.45.4.tar.gz: OK
+file-5.46.tar.gz: OK
+findutils-4.10.0.tar.xz: OK
+flex-2.6.4.tar.gz: OK
+flit_core-3.12.0.tar.gz: OK
+gawk-5.3.2.tar.xz: OK
+gcc-15.2.0.tar.xz: OK
+gdbm-1.26.tar.gz: OK
+gettext-0.26.tar.xz: OK
+glibc-2.42.tar.xz: OK
+gmp-6.3.0.tar.xz: OK
+gperf-3.3.tar.gz: OK
+grep-3.12.tar.xz: OK
+groff-1.23.0.tar.gz: OK
+grub-2.12.tar.xz: OK
+gzip-1.14.tar.xz: OK
+iana-etc-20250807.tar.gz: OK
+```
+
+As we see here, our md5sums are all verified, meaning we have all the necessary packages. The book recommends to change ownership of these files to root, but we are root so they are already owned by us. If you downloaded them as a non root user, just run this to be safe
+
+```nil
+chown root:root $LFS/sources/*
+```
+
+We're ready to move onto Chapter 4.
+
+
+## Chapter 4 - Final Preparations: {#chapter-4-final-preparations}
+
+
+### Creating the LFS Filesystem {#creating-the-lfs-filesystem}
+
+So we want to actually create the LFS filesystem here, so lets create some directories like so:
+
+```nil
+mkdir -pv $LFS/{etc,var} $LFS/usr/{bin,lib,sbin}
+```
+
+Expected output:
+
+```nil
+mkdir: created directory '/mnt/lfs/etc'
+mkdir: created directory '/mnt/lfs/var'
+mkdir: created directory '/mnt/lfs/usr'
+mkdir: created directory '/mnt/lfs/usr/bin'
+mkdir: created directory '/mnt/lfs/usr/lib'
+mkdir: created directory '/mnt/lfs/usr/sbin'
+```
+
+And to create symlinks here:
+
+```nil
+for i in bin lib sbin; do
+  ln -sv usr/$i $LFS/$i
+done
+```
+
+Expected output:
+
+```nil
+'/mnt/lfs/bin' -> 'usr/bin'
+'/mnt/lfs/lib' -> 'usr/lib'
+'/mnt/lfs/sbin' -> 'usr/sbin'
+```
+
+And for the lib64 directory in my case (because I am on x86_64 technology)
+
+```nil
+case $(uname -m) in
+  x86_64) mkdir -pv $LFS/lib64 ;;
+esac
+```
+
+Expected output:
+
+```nil
+mkdir: created directory '/mnt/lfs/lib64'
+```
+
+And for the tools directory, we will use this to keep some of the temporary programs we will be compiling.
+
+```nil
+mkdir -pv $LFS/tools
+```
+
+Expected output:
+
+```nil
+mkdir: created directory '/mnt/lfs/tools'
+```
+
+And we're ready to add the LFS user.
+
+
+### Adding LFS user: {#adding-lfs-user}
+
+We want an LFS user because running things as root could break our system, and if we do it as LFS, we dont risk nefariously affecting the host iso in any way.
+
+So lets add the group and create the user like so:
+
+```nil
+groupadd lfs
+useradd -s /bin/bash -g lfs -m -k /dev/null lfs
+```
+
+And add a passwd so we can log in to it:
+
+```nil
+passwd lfs
+```
+
+And we want lfs to have full access to all lfs directories so lets run:
+
+```nil
+chown -v lfs $LFS/{usr{,/*},var,etc,tools}
+case $(uname -m) in
+  x86_64) chown -v lfs $LFS/lib64 ;;
+esac
+```
+
+Expected output:
+
+```nil
+livecd /mnt/lfs/sources # chown -v lfs $LFS/{usr{,/*},var,etc,tools}
+changed ownership of '/mnt/lfs/usr' from root to lfs
+changed ownership of '/mnt/lfs/usr/bin' from root to lfs
+changed ownership of '/mnt/lfs/usr/lib' from root to lfs
+changed ownership of '/mnt/lfs/usr/sbin' from root to lfs
+changed ownership of '/mnt/lfs/var' from root to lfs
+changed ownership of '/mnt/lfs/etc' from root to lfs
+changed ownership of '/mnt/lfs/tools' from root to lfs
+livecd /mnt/lfs/sources # case $(uname -m) in
+>   x86_64) chown -v lfs $LFS/lib64 ;;
+> esac
+changed ownership of '/mnt/lfs/lib64' from root to lfs
+```
+
+And we're ready to switch into our new user. We can ignore this warning here, since gentoo wont give us issues, but take a look at this warning if you are on a different host.
+
+```nil
+su - lfs
+```
+
+And now we're LFS, so we are ready to setup the environment
+
+
+### Setup Environment for lfs user {#setup-environment-for-lfs-user}
+
+Let's create a bash profile like so:
+
+```nil
+cat > ~/.bash_profile << "EOF"
+exec env -i HOME=$HOME TERM=$TERM PS1='\u:\w\$ ' /bin/bash
+EOF
+```
+
+And as we see here, this will ensure that no unwanted and potentially hazardous environment variables from the host system leak into the build environment
+
+And lets create the bashrc here like so:
+
+```nil
+cat > ~/.bashrc << "EOF"
+set +h
+umask 022
+LFS=/mnt/lfs
+LC_ALL=POSIX
+LFS_TGT=$(uname -m)-lfs-linux-gnu
+PATH=/usr/bin
+if [ ! -L /bin ]; then PATH=/bin:$PATH; fi
+PATH=$LFS/tools/bin:$PATH
+CONFIG_SITE=$LFS/usr/share/config.site
+export LFS LC_ALL LFS_TGT PATH CONFIG_SITE
+EOF
+```
+
+Main things here are setting +h which turns off the hashing feature, which we need to disable in order to force our shell to search for the proper path whenever a program is to be run. The rest of these options are things we already did previously such as umask, or exporting the LFS path, or can be explained here.
+
+For this important block here, we dont need to do this on gentoo because the usrs environment is already clean of the /etc/bash.bashrc, but we can run it anyway to be safe. we have to run it as root, though, so lets do this:
+
+```nil
+logout
+[ ! -e /etc/bash.bashrc ] || mv -v /etc/bash.bashrc /etc/bash.bashrc.NOUSE
+su - lfs
+```
+
+No output means we are in the clear.
+
+Now to update our makeflags to reflect our cpus. Our cpu has 12 logical cores, so we can use 12 instead of 32... or better yet we can just automatically use nproc to get the true value of logical cores and append it to our bashrc like so, and then source our bash_profile like so:
+
+```nil
+cat >> ~/.bashrc << "EOF"
+export MAKEFLAGS=-j$(nproc)
+EOF
+
+source ~/.bash_profile
+```
+
+
+### SBUs {#sbus}
+
+This will be a unit that measures how long it takes to compile/install a package. We can use the time command to test that when we install Binutils Pass 1.
+
+
+### Test Suites {#test-suites}
+
+And here it just says that test suites can't run in Chapters 5-6 because we're cross-compiling. We'll run them later when building inside the LFS chroot environment where we are agnostic to the host machine.
+
+
+## Chapter 5 - Compiling a Cross Toolchain: {#chapter-5-compiling-a-cross-toolchain}
+
+
+### Overview {#overview}
+
+First we compile a cross toolchain, then use it to build temporary tools, and finally install the permanent system. We separate these stages because cross-compilation prevents any dependencies on the host system, ensuring a clean, self-contained build.
+
+To build these tools, its going to be a 3 step method:
+
+1.  untar the source tarball
+2.  follow instructions on lfs book to install tool
+3.  cd back into sources and clean it up
+
+We will repeat this process over 100 times in lfs, so I'll go slow for the first few and as soon as I finish 3-4 of them, you will sort of understand the pattern here.
+
+I'll also do my best to explain what each tool is, and thats the real benefit of LFS in my opinion, you learn what ever tool on your system is and what it does.
+
+So let's jump straight into Binutils.
+
+
+### Binutils-2.45 - Pass 1 {#binutils-2-dot-45-pass-1}
+
+The Binutils package contains a linker, an assembler, and other tools for handling object files.
+
+Some of the binutils you may be familiar with are:
+strings, size, strip.
+
+This will be a pattern we see.. extract the tool, cd into it, and run the commands from the handbook to create/compile the tool.
+
+```nil
+cd $LFS/sources
+tar -xvf binutils
+cd binutils
+```
+
+```nil
+mkdir -v build
+cd       build
+```
+
+So lets actually time this compilation to see what we're working with:
+Prepare for compilation:
+
+```nil
+time { ../configure --prefix=$LFS/tools \
+             --with-sysroot=$LFS \
+             --target=$LFS_TGT   \
+             --disable-nls       \
+             --enable-gprofng=no \
+             --disable-werror    \
+             --enable-new-dtags  \
+             --enable-default-hash-style=gnu && make && make install; }
+```
+
+As we see at the top here, binutils is 1 sbu, so that means we can use it as a reference. so if glibc is 2 sbus, we can expect it to take 2 times the amount of time that binutils took.
+
+Once thats complete, lets get back to the sources directory, and remove the binutils directory like so:
+
+```nil
+cd ../..
+rm -Rf binutils
+```
+
+
+### GCC-15.2.0 - Pass 1 {#gcc-15-dot-2-dot-0-pass-1}
+
+The GCC package contains the GNU compiler collection, which includes the C and C++ compilers.
+You are probabily familiar with this.. if you have ever compiled any C code, you probably used gcc.
+
+This is our first pass of GCC, and this will be simply so that we can cross compile all the necessary tools in chapter 5.
+
+```nil
+tar -xvf gcc-tab
+cd gcc-tab
+```
+
+Now in here we have to extract subpackages, and rename them like so:
+
+```nil
+tar -xf ../mpfr-4.2.2.tar.xz
+mv -v mpfr-4.2.2 mpfr
+tar -xf ../gmp-6.3.0.tar.xz
+mv -v gmp-6.3.0 gmp
+tar -xf ../mpc-1.3.1.tar.gz
+mv -v mpc-1.3.1 mpc
+```
+
+Run these individually in case one errors out
+And since were on 64 bit architecture lets run this:
+
+```nil
+case $(uname -m) in
+  x86_64)
+    sed -e '/m64=/s/lib64/lib/' \
+        -i.orig gcc/config/i386/t-linux64
+ ;;
+esac
+```
+
+And now time to build gcc...
+
+```nil
+mkdir -v build
+cd       build
+```
+
+```nil
+time { ../configure                  \
+    --target=$LFS_TGT         \
+    --prefix=$LFS/tools       \
+    --with-glibc-version=2.42 \
+    --with-sysroot=$LFS       \
+    --with-newlib             \
+    --without-headers         \
+    --enable-default-pie      \
+    --enable-default-ssp      \
+    --disable-nls             \
+    --disable-shared          \
+    --disable-multilib        \
+    --disable-threads         \
+    --disable-libatomic       \
+    --disable-libgomp         \
+    --disable-libquadmath     \
+    --disable-libssp          \
+    --disable-libvtv          \
+    --disable-libstdcxx       \
+    --enable-languages=c,c++ && make && make install; }
+```
+
+And we need to recreate this header file:
+
+```nil
+cd ..
+cat gcc/limitx.h gcc/glimits.h gcc/limity.h > \
+  `dirname $($LFS_TGT-gcc -print-libgcc-file-name)`/include/limits.h
+```
+
+and cleanup:
+
+```nil
+cd ..
+rm -rf gcc-tab
+```
+
+
+### Linux-6.16.1 API Headers: {#linux-6-dot-16-dot-1-api-headers}
+
+The Linux API Headers provide the kernel interface that Glibc uses to interact with the Linux kernel.
+
+Ensure no stale files embedded in this package:
+
+```nil
+make mrproper
+```
+
+Expect no output above, and then run:
+
+```nil
+make headers
+find usr/include -type f ! -name '*.h' -delete
+cp -rv usr/include $LFS/usr
+```
+
+So all we're doing here is creating the linux header files, and copying them to the lfs/usr directory.
+
+```nil
+cd ..
+rm -rf linux-tab
+```
+
+
+### Glibc-2.42 {#glibc-2-dot-42}
+
+This is the main C library.
+
+First we need to create symlinks for 'LSB Compliance' which is the linux standard base, which depends on your architecture so we can run this case statement here to create symlinks for where the dynamic linkers need to point to respectively:
+
+```nil
+case $(uname -m) in
+    i?86)   ln -sfv ld-linux.so.2 $LFS/lib/ld-lsb.so.3
+    ;;
+    x86_64) ln -sfv ../lib/ld-linux-x86-64.so.2 $LFS/lib64
+            ln -sfv ../lib/ld-linux-x86-64.so.2 $LFS/lib64/ld-lsb-x86-64.so.3
+    ;;
+esac
+```
+
+And to apply this patch here:
+
+```sh
+patch -Np1 -i ../glibc-2.42-fhs-1.patch
+```
+
+Expected output:
+
+```nil
+patching file Makeconfig
+Hunk #1 succeeded at 262 (offset 12 lines).
+patching file nscd/nscd.h
+Hunk #1 succeeded at 160 (offset 48 lines).
+patching file nss/db-Makefile
+Hunk #1 succeeded at 21 (offset -1 lines).
+patching file sysdeps/generic/paths.h
+patching file sysdeps/unix/sysv/linux/paths.h
+```
+
+And to build glibc:
+
+```nil
+mkdir -v build
+cd       build
+echo "rootsbindir=/usr/sbin" > configparms
+
+../configure                             \
+      --prefix=/usr                      \
+      --host=$LFS_TGT                    \
+      --build=$(../scripts/config.guess) \
+      --disable-nscd                     \
+      libc_cv_slibdir=/usr/lib           \
+      --enable-kernel=5.4
+```
+
+```nil
+make
+make DESTDIR=$LFS install
+sed '/RTLDLIST=/s@/usr@@g' -i $LFS/usr/bin/ldd
+```
+
+Sanity checks for the symlinks:
+
+```nil
+echo 'int main(){}' | $LFS_TGT-gcc -x c - -v -Wl,--verbose &> dummy.log
+readelf -l a.out | grep ': /lib'
+```
+
+Expected output:
+
+```nil
+[Requesting program interpreter: /lib64/ld-linux-x86-64.so.2]
+```
+
+Ensure we are setup to choose the correct start files:
+
+```nil
+grep -E -o "$LFS/lib.*/S?crt[1in].*succeeded" dummy.log
+```
+
+Expected output:
+
+```nil
+/mnt/lfs/lib/../lib/Scrt1.o succeeded
+/mnt/lfs/lib/../lib/crti.o succeeded
+/mnt/lfs/lib/../lib/crtn.o succeeded
+```
+
+Verify that the compiler is searching for the correct header files:
+
+```nil
+grep -B3 "^ $LFS/usr/include" dummy.log
+```
+
+Expected output:
+
+```nil
+#include <...> search starts here:
+ /mnt/lfs/tools/lib/gcc/x86_64-lfs-linux-gnu/15.2.0/include
+ /mnt/lfs/tools/lib/gcc/x86_64-lfs-linux-gnu/15.2.0/include-fixed
+ /mnt/lfs/usr/include
+```
+
+Next, verify that the new linker is being used with the correct search paths:
+
+```nil
+grep 'SEARCH.*/usr/lib' dummy.log |sed 's|; |\n|g'
+```
+
+Expected output:
+
+```nil
+SEARCH_DIR("=/mnt/lfs/tools/x86_64-lfs-linux-gnu/lib64")
+SEARCH_DIR("=/usr/local/lib64")
+SEARCH_DIR("=/lib64")
+SEARCH_DIR("=/usr/lib64")
+SEARCH_DIR("=/mnt/lfs/tools/x86_64-lfs-linux-gnu/lib")
+SEARCH_DIR("=/usr/local/lib")
+SEARCH_DIR("=/lib")
+SEARCH_DIR("=/usr/lib");
+```
+
+Ensure correct version of glibc:
+
+```nil
+grep "/lib.*/libc.so.6 " dummy.log
+>> attempt to open /mnt/lfs/usr/lib/libc.so.6 succeeded
+```
+
+Make sure gcc is using correct dynamic linker:
+
+```nil
+grep found dummy.log
+>> found ld-linux-x86-64.so.2 at /mnt/lfs/usr/lib/ld-linux-x86-64.so.2
+```
+
+Clean up dummy.log
+
+```nil
+rm -v a.out dummy.log
+cd ../..
+rm -Rf glibc
+```
+
+
+### Libstdc++ from GCC-15.2.0 {#libstdc-plus-plus-from-gcc-15-dot-2-dot-0}
+
+Lib standard C++ is needed to compile c++ code.
+
+```nil
+tar -xvf gcc-15.2.0...
+cd gcc...
+```
+
+```nil
+mkdir -v build; cd build
+```
+
+```nil
+../libstdc++-v3/configure      \
+    --host=$LFS_TGT            \
+    --build=$(../config.guess) \
+    --prefix=/usr              \
+    --disable-multilib         \
+    --disable-nls              \
+    --disable-libstdcxx-pch    \
+    --with-gxx-include-dir=/tools/$LFS_TGT/include/c++/15.2.0
+make
+make DESTDIR=$LFS install
+rm -v $LFS/usr/lib/lib{stdc++{,exp,fs},supc++}.la
+```
+
+Clean this up:
+
+```nil
+cd ../..
+rm -rf gcc-tab
+```
+
+And that is the end of chaper 5. We are ready to move on to cross compiling temporary tools!
+
+
+## Chapter 6 - Cross Compiling Temporary Tools: {#chapter-6-cross-compiling-temporary-tools}
+
+> "This chapter shows how to cross-compile basic utilities using the just built cross-toolchain. Those utilities are installed into their final location, but cannot be used yet. Basic tasks still rely on the host's tools. Nevertheless, the installed libraries are used when linking."  - LFS manual
+
+
+### M4-1.4.20 {#m4-1-dot-4-dot-20}
+
+```sh
+cd $LFS/sources
+tar -xf m4-1.4.20.tar.xz
+cd m4-1.4.20
+
+./configure --prefix=/usr   \
+            --host=$LFS_TGT \
+            --build=$(build-aux/config.guess)
+
+make
+make DESTDIR=$LFS install
+
+cd $LFS/sources
+rm -rf m4-1.4.20
+```
+
+
+### Ncurses-6.5-20250809 {#ncurses-6-dot-5-20250809}
+
+```sh
+tar -xf ncurses-6.5-20250809.tar.gz
+cd ncurses-6.5-20250809
+
+sed -i s/mawk// configure
+
+mkdir build
+pushd build
+  ../configure
+  make -C include
+  make -C progs tic
+popd
+
+./configure --prefix=/usr                \
+            --host=$LFS_TGT              \
+            --build=$(./config.guess)    \
+            --mandir=/usr/share/man      \
+            --with-manpage-format=normal \
+            --with-shared                \
+            --without-normal             \
+            --with-cxx-shared            \
+            --without-debug              \
+            --without-ada                \
+            --disable-stripping          \
+            --enable-widec
+
+make
+make DESTDIR=$LFS TIC_PATH=$(pwd)/build/progs/tic install
+ln -sv libncursesw.so $LFS/usr/lib/libncurses.so
+sed -e 's/^#if.*XOPEN.*$/#if 1/' \
+    -i $LFS/usr/include/curses.h
+
+cd $LFS/sources
+rm -rf ncurses-6.5-20250809
+```
+
+
+### Bash-5.3 {#bash-5-dot-3}
+
+```sh
+tar -xf bash-5.3.tar.gz
+cd bash-5.3
+
+./configure --prefix=/usr                      \
+            --build=$(sh support/config.guess) \
+            --host=$LFS_TGT                    \
+            --without-bash-malloc              \
+            bash_cv_strtold_broken=no
+
+make
+make DESTDIR=$LFS install
+
+ln -sv bash $LFS/bin/sh
+
+cd $LFS/sources
+rm -rf bash-5.3
+```
+
+
+### Coreutils-9.7 {#coreutils-9-dot-7}
+
+```sh
+tar -xf coreutils-9.7.tar.xz
+cd coreutils-9.7
+
+./configure --prefix=/usr                     \
+            --host=$LFS_TGT                   \
+            --build=$(build-aux/config.guess) \
+            --enable-install-program=hostname \
+            --enable-no-install-program=kill,uptime
+
+make
+make DESTDIR=$LFS install
+
+mv -v $LFS/usr/bin/chroot $LFS/usr/sbin
+mkdir -pv $LFS/usr/share/man/man8
+mv -v $LFS/usr/share/man/man1/chroot.1 $LFS/usr/share/man/man8/chroot.8
+sed -i 's/"1"/"8"/' $LFS/usr/share/man/man8/chroot.8
+
+cd $LFS/sources
+rm -rf coreutils-9.7
+```
+
+
+### Diffutils-3.12 {#diffutils-3-dot-12}
+
+```sh
+tar -xf diffutils-3.12.tar.xz
+cd diffutils-3.12
+
+./configure --prefix=/usr   \
+            --host=$LFS_TGT \
+            --build=$(./build-aux/config.guess)
+
+make
+make DESTDIR=$LFS install
+
+cd $LFS/sources
+rm -rf diffutils-3.12
+```
+
+
+### File-5.46 {#file-5-dot-46}
+
+```sh
+tar -xf file-5.46.tar.gz
+cd file-5.46
+
+mkdir build
+pushd build
+  ../configure --disable-bzlib      \
+               --disable-libseccomp \
+               --disable-xzlib      \
+               --disable-zlib
+  make
+popd
+
+./configure --prefix=/usr --host=$LFS_TGT --build=$(./config.guess)
+
+make FILE_COMPILE=$(pwd)/build/src/file
+make DESTDIR=$LFS install
+
+rm -v $LFS/usr/lib/libmagic.la
+
+cd $LFS/sources
+rm -rf file-5.46
+```
+
+
+### Findutils-4.10.0 {#findutils-4-dot-10-dot-0}
+
+```sh
+tar -xf findutils-4.10.0.tar.xz
+cd findutils-4.10.0
+
+./configure --prefix=/usr                   \
+            --localstatedir=/var/lib/locate \
+            --host=$LFS_TGT                 \
+            --build=$(build-aux/config.guess)
+
+make
+make DESTDIR=$LFS install
+
+cd $LFS/sources
+rm -rf findutils-4.10.0
+```
+
+
+### Gawk-5.3.2 {#gawk-5-dot-3-dot-2}
+
+```sh
+tar -xf gawk-5.3.2.tar.xz
+cd gawk-5.3.2
+
+sed -i 's/extras//' Makefile.in
+
+./configure --prefix=/usr   \
+            --host=$LFS_TGT \
+            --build=$(build-aux/config.guess)
+
+make
+make DESTDIR=$LFS install
+
+cd $LFS/sources
+rm -rf gawk-5.3.2
+```
+
+
+### Grep-3.12 {#grep-3-dot-12}
+
+```sh
+tar -xf grep-3.12.tar.xz
+cd grep-3.12
+
+./configure --prefix=/usr   \
+            --host=$LFS_TGT \
+            --build=$(./build-aux/config.guess)
+
+make
+make DESTDIR=$LFS install
+
+cd $LFS/sources
+rm -rf grep-3.12
+```
+
+
+### Gzip-1.14 {#gzip-1-dot-14}
+
+```sh
+tar -xf gzip-1.14.tar.xz
+cd gzip-1.14
+
+./configure --prefix=/usr --host=$LFS_TGT
+
+make
+make DESTDIR=$LFS install
+
+cd $LFS/sources
+rm -rf gzip-1.14
+```
+
+
+### Make-4.4.1 {#make-4-dot-4-dot-1}
+
+```sh
+tar -xf make-4.4.1.tar.gz
+cd make-4.4.1
+
+./configure --prefix=/usr   \
+            --without-guile \
+            --host=$LFS_TGT \
+            --build=$(build-aux/config.guess)
+
+make
+make DESTDIR=$LFS install
+
+cd $LFS/sources
+rm -rf make-4.4.1
+```
+
+
+### Patch-2.8 {#patch-2-dot-8}
+
+```sh
+tar -xf patch-2.8.tar.xz
+cd patch-2.8
+
+./configure --prefix=/usr   \
+            --host=$LFS_TGT \
+            --build=$(build-aux/config.guess)
+
+make
+make DESTDIR=$LFS install
+
+cd $LFS/sources
+rm -rf patch-2.8
+```
+
+
+### Sed-4.9 {#sed-4-dot-9}
+
+```sh
+tar -xf sed-4.9.tar.xz
+cd sed-4.9
+
+./configure --prefix=/usr   \
+            --host=$LFS_TGT \
+            --build=$(./build-aux/config.guess)
+
+make
+make DESTDIR=$LFS install
+
+cd $LFS/sources
+rm -rf sed-4.9
+```
+
+
+### Tar-1.35 {#tar-1-dot-35}
+
+```sh
+tar -xf tar-1.35.tar.xz
+cd tar-1.35
+
+./configure --prefix=/usr                     \
+            --host=$LFS_TGT                   \
+            --build=$(build-aux/config.guess)
+
+make
+make DESTDIR=$LFS install
+
+cd $LFS/sources
+rm -rf tar-1.35
+```
+
+
+### Xz-5.8.1 {#xz-5-dot-8-dot-1}
+
+```sh
+tar -xf xz-5.8.1.tar.xz
+cd xz-5.8.1
+
+./configure --prefix=/usr                     \
+            --host=$LFS_TGT                   \
+            --build=$(build-aux/config.guess) \
+            --disable-static                  \
+            --docdir=/usr/share/doc/xz-5.8.1
+
+make
+make DESTDIR=$LFS install
+
+rm -v $LFS/usr/lib/liblzma.la
+
+cd $LFS/sources
+rm -rf xz-5.8.1
+```
+
+
+### Binutils-2.45 - Pass 2 {#binutils-2-dot-45-pass-2}
+
+```sh
+tar -xf binutils-2.45.tar.xz
+cd binutils-2.45
+
+sed '6009s/$add_dir//' -i ltmain.sh
+
+mkdir -v build
+cd build
+
+../configure                   \
+    --prefix=/usr              \
+    --build=$(../config.guess) \
+    --host=$LFS_TGT            \
+    --disable-nls              \
+    --enable-shared            \
+    --enable-gprofng=no        \
+    --disable-werror           \
+    --enable-64-bit-bfd        \
+    --enable-new-dtags         \
+    --enable-default-hash-style=gnu
+
+make
+make DESTDIR=$LFS install
+
+rm -v $LFS/usr/lib/lib{bfd,ctf,ctf-nobfd,opcodes,sframe}.{a,la}
+
+cd $LFS/sources
+rm -rf binutils-2.45
+```
+
+
+### GCC-15.2.0 - Pass 2 {#gcc-15-dot-2-dot-0-pass-2}
+
+```sh
+tar -xf gcc-15.2.0.tar.xz
+cd gcc-15.2.0
+
+tar -xf ../mpfr-4.2.2.tar.xz
+mv -v mpfr-4.2.2 mpfr
+tar -xf ../gmp-6.3.0.tar.xz
+mv -v gmp-6.3.0 gmp
+tar -xf ../mpc-1.3.1.tar.gz
+mv -v mpc-1.3.1 mpc
+
+case $(uname -m) in
+  x86_64)
+    sed -e '/m64=/s/lib64/lib/' \
+        -i.orig gcc/config/i386/t-linux64
+  ;;
+esac
+
+sed '/thread_header =/s/@.*@/gthr-posix.h/' \
+    -i libgcc/Makefile.in libstdc++-v3/include/Makefile.in
+
+mkdir -v build
+cd build
+
+../configure                                       \
+    --build=$(../config.guess)                     \
+    --host=$LFS_TGT                                \
+    --target=$LFS_TGT                              \
+    LDFLAGS_FOR_TARGET=-L$PWD/$LFS_TGT/libgcc      \
+    --prefix=/usr                                  \
+    --with-build-sysroot=$LFS                      \
+    --enable-default-pie                           \
+    --enable-default-ssp                           \
+    --disable-nls                                  \
+    --disable-multilib                             \
+    --disable-libatomic                            \
+    --disable-libgomp                              \
+    --disable-libquadmath                          \
+    --disable-libsanitizer                         \
+    --disable-libssp                               \
+    --disable-libvtv                               \
+    --enable-languages=c,c++
+
+make
+make DESTDIR=$LFS install
+
+ln -sv gcc $LFS/usr/bin/cc
+
+cd $LFS/sources
+rm -rf gcc-15.2.0
+```
+
+
+## Chapter 7 - Entering Chroot and Building Additional Temporary Tools: {#chapter-7-entering-chroot-and-building-additional-temporary-tools}
+
+
+### Changing Ownership {#changing-ownership}
+
+Before we enter chroot, we need to change ownership of everything to root:
+
+```sh
+chown -R root:root $LFS/{usr,lib,var,etc,bin,sbin,tools}
+case $(uname -m) in
+  x86_64) chown -R root:root $LFS/lib64 ;;
+esac
+```
+
+
+### Preparing Virtual Kernel File Systems {#preparing-virtual-kernel-file-systems}
+
+To enter chroot, we need to create and mount all the binded directories like so:
+
+```sh
+mkdir -pv $LFS/{dev,proc,sys,run}
+mount -v --bind /dev $LFS/dev
+mount -vt devpts devpts -o gid=5,mode=0620 $LFS/dev/pts
+mount -vt proc proc $LFS/proc
+mount -vt sysfs sysfs $LFS/sys
+mount -vt tmpfs tmpfs $LFS/run
+
+if [ -h $LFS/dev/shm ]; then
+  install -v -d -m 1777 $LFS$(realpath /dev/shm)
+else
+  mount -vt tmpfs -o nosuid,nodev tmpfs $LFS/dev/shm
+fi
+```
+
+
+### Entering Chroot {#entering-chroot}
+
+Then we can chroot into our new system like so:
+
+```sh
+chroot "$LFS" /usr/bin/env -i   \
+    HOME=/root                  \
+    TERM="$TERM"                \
+    PS1='(lfs chroot) \u:\w\$ ' \
+    PATH=/usr/bin:/usr/sbin     \
+    MAKEFLAGS="-j$(nproc)"      \
+    TESTSUITEFLAGS="-j$(nproc)" \
+    /bin/bash --login
+```
+
+You should now see your prompt change to \`(lfs chroot) root:/#\` - you're inside your new LFS system!
+
+
+### Creating Directories {#creating-directories}
+
+Now we need to create the remaining directory structure:
+
+```sh
+mkdir -pv /{boot,home,mnt,opt,srv}
+mkdir -pv /etc/{opt,sysconfig}
+mkdir -pv /lib/firmware
+mkdir -pv /media/{floppy,cdrom}
+mkdir -pv /usr/{,local/}{include,src}
+mkdir -pv /usr/local/{bin,lib,sbin}
+mkdir -pv /usr/{,local/}share/{color,dict,doc,info,locale,man}
+mkdir -pv /usr/{,local/}share/{misc,terminfo,zoneinfo}
+mkdir -pv /usr/{,local/}share/man/man{1..8}
+mkdir -pv /var/{cache,local,log,mail,opt,spool}
+mkdir -pv /var/lib/{color,misc,locate}
+
+ln -sfv /run /var/run
+ln -sfv /run/lock /var/lock
+
+install -dv -m 0750 /root
+install -dv -m 1777 /tmp /var/tmp
+```
+
+
+### Creating Essential Files and Symlinks {#creating-essential-files-and-symlinks}
+
+Create essential system files:
+
+```sh
+ln -sv /proc/self/mounts /etc/mtab
+
+cat > /etc/hosts << EOF
+127.0.0.1  localhost $(hostname)
+::1        localhost
+EOF
+
+cat > /etc/passwd << "EOF"
+root:x:0:0:root:/root:/bin/bash
+bin:x:1:1:bin:/dev/null:/usr/bin/false
+daemon:x:6:6:Daemon User:/dev/null:/usr/bin/false
+messagebus:x:18:18:D-Bus Message Daemon User:/run/dbus:/usr/bin/false
+systemd-journal-gateway:x:73:73:systemd Journal Gateway:/:/usr/bin/false
+systemd-journal-remote:x:74:74:systemd Journal Remote:/:/usr/bin/false
+systemd-journal-upload:x:75:75:systemd Journal Upload:/:/usr/bin/false
+systemd-network:x:76:76:systemd Network Management:/:/usr/bin/false
+systemd-resolve:x:77:77:systemd Resolver:/:/usr/bin/false
+systemd-timesync:x:78:78:systemd Time Synchronization:/:/usr/bin/false
+systemd-coredump:x:79:79:systemd Core Dumper:/:/usr/bin/false
+uuidd:x:80:80:UUID Generator Daemon User:/dev/null:/usr/bin/false
+systemd-oom:x:81:81:systemd Out Of Memory Daemon:/:/usr/bin/false
+nobody:x:65534:65534:Unprivileged User:/dev/null:/usr/bin/false
+EOF
+
+cat > /etc/group << "EOF"
+root:x:0:
+bin:x:1:daemon
+sys:x:2:
+kmem:x:3:
+tape:x:4:
+tty:x:5:
+daemon:x:6:
+floppy:x:7:
+disk:x:8:
+lp:x:9:
+dialout:x:10:
+audio:x:11:
+video:x:12:
+utmp:x:13:
+cdrom:x:15:
+adm:x:16:
+messagebus:x:18:
+systemd-journal:x:23:
+input:x:24:
+mail:x:34:
+kvm:x:61:
+systemd-journal-gateway:x:73:
+systemd-journal-remote:x:74:
+systemd-journal-upload:x:75:
+systemd-network:x:76:
+systemd-resolve:x:77:
+systemd-timesync:x:78:
+systemd-coredump:x:79:
+uuidd:x:80:
+systemd-oom:x:81:
+wheel:x:97:
+users:x:999:
+nogroup:x:65534:
+EOF
+
+echo "tester:x:101:101::/home/tester:/bin/bash" >> /etc/passwd
+echo "tester:x:101:" >> /etc/group
+install -o tester -d /home/tester
+
+exec /usr/bin/bash --login
+
+touch /var/log/{btmp,lastlog,faillog,wtmp}
+chgrp -v utmp /var/log/lastlog
+chmod -v 664  /var/log/lastlog
+chmod -v 600  /var/log/btmp
+```
+
+Now we build the remaining temporary tools in chroot:
+
+
+### Gettext-0.26 {#gettext-0-dot-26}
+
+```sh
+cd /sources
+tar -xf gettext-0.26.tar.xz
+cd gettext-0.26
+
+./configure --disable-shared
+
+make
+cp -v gettext-tools/src/{msgfmt,msgmerge,xgettext} /usr/bin
+
+cd /sources
+rm -rf gettext-0.26
+```
+
+
+### Bison-3.8.2 {#bison-3-dot-8-dot-2}
+
+```sh
+tar -xf bison-3.8.2.tar.xz
+cd bison-3.8.2
+
+./configure --prefix=/usr \
+            --docdir=/usr/share/doc/bison-3.8.2
+
+make
+make install
+
+cd /sources
+rm -rf bison-3.8.2
+```
+
+
+### Perl-5.42.0 {#perl-5-dot-42-dot-0}
+
+```sh
+tar -xf perl-5.42.0.tar.xz
+cd perl-5.42.0
+
+sh Configure -des                                          \
+             -D prefix=/usr                                \
+             -D vendorprefix=/usr                          \
+             -D useshrplib                                 \
+             -D privlib=/usr/lib/perl5/5.42/core_perl      \
+             -D archlib=/usr/lib/perl5/5.42/core_perl      \
+             -D sitelib=/usr/lib/perl5/5.42/site_perl      \
+             -D sitearch=/usr/lib/perl5/5.42/site_perl     \
+             -D vendorlib=/usr/lib/perl5/5.42/vendor_perl  \
+             -D vendorarch=/usr/lib/perl5/5.42/vendor_perl
+
+make
+make install
+
+cd /sources
+rm -rf perl-5.42.0
+```
+
+
+### Python-3.13.7 {#python-3-dot-13-dot-7}
+
+Use capital P here, and ignore ssl warnings.
+
+```sh
+tar -xf Python-3.13.7.tar.xz
+cd Python-3.13.7
+
+./configure --prefix=/usr   \
+            --enable-shared \
+            --without-ensurepip
+
+make
+make install
+
+cd /sources
+rm -rf Python-3.13.7
+```
+
+
+### Texinfo-7.2 {#texinfo-7-dot-2}
+
+```sh
+tar -xf texinfo-7.2.tar.xz
+cd texinfo-7.2
+
+./configure --prefix=/usr
+
+make
+make install
+
+cd /sources
+rm -rf texinfo-7.2
+```
+
+
+### Util-linux-2.41.1 {#util-linux-2-dot-41-dot-1}
+
+```sh
+tar -xf util-linux-2.41.1.tar.xz
+cd util-linux-2.41.1
+
+mkdir -pv /var/lib/hwclock
+
+./configure --libdir=/usr/lib     \
+            --runstatedir=/run    \
+            --disable-chfn-chsh   \
+            --disable-login       \
+            --disable-nologin     \
+            --disable-su          \
+            --disable-setpriv     \
+            --disable-runuser     \
+            --disable-pylibmount  \
+            --disable-static      \
+            --disable-liblastlog2 \
+            --without-python      \
+            ADJTIME_PATH=/var/lib/hwclock/adjtime \
+            --docdir=/usr/share/doc/util-linux-2.41.1
+
+make
+make install
+
+cd /sources
+rm -rf util-linux-2.41.1
+```
+
+
+### Cleaning up and Saving the Temporary System {#cleaning-up-and-saving-the-temporary-system}
+
+Now let's clean up the temporary system:
+
+```sh
+rm -rf /usr/share/{info,man,doc}/*
+
+find /usr/{lib,libexec} -name \*.la -delete
+
+rm -rf /tools
+```
+
+At this point, you can optionally backup your system. If something goes wrong in Chapter 8, you can restore from here:
+
+```sh
+# Exit chroot
+logout
+
+# From the host system:
+cd $LFS
+tar -cJpf $HOME/lfs-temp-tools-12.4.tar.xz .
+```
+
+To restore the backup later if needed:
+
+```sh
+cd $LFS
+rm -rf ./*
+tar -xpf $HOME/lfs-temp-tools-12.4.tar.xz
+```
+
+And you're done with Chapter 7! The temporary tools are now built and you're ready to move on to Chapter 8 where you'll build the final LFS system.
+
+
+## Chapter 8 - Installing Basic System Software: {#chapter-8-installing-basic-system-software}
+
+
+### Man-pages-6.15 {#man-pages-6-dot-15}
+
+```sh
+cd /sources
+tar -xf man-pages-6.15.tar.xz
+cd man-pages-6.15
+
+rm -v man3/crypt*
+make prefix=/usr install
+
+cd /sources
+rm -rf man-pages-6.15
+```
+
+
+### Iana-Etc-20250807 {#iana-etc-20250807}
+
+```sh
+tar -xf iana-etc-20250807.tar.gz
+cd iana-etc-20250807
+
+cp services protocols /etc
+
+cd /sources
+rm -rf iana-etc-20250807
+```
+
+
+### Glibc-2.42 {#glibc-2-dot-42}
+
+```sh
+tar -xf glibc-2.42.tar.xz
+cd glibc-2.42
+
+patch -Np1 -i ../glibc-2.42-fhs-1.patch
+
+mkdir -v build
+cd build
+
+echo "rootsbindir=/usr/sbin" > configparms
+
+../configure --prefix=/usr                            \
+             --disable-werror                         \
+             --enable-kernel=5.4                      \
+             --enable-stack-protector=strong          \
+             --disable-nscd                           \
+             libc_cv_slibdir=/usr/lib
+
+make
+
+# Optional but recommended - run tests
+make check
+
+# Install
+touch /etc/ld.so.conf
+sed '/test-installation/s@$(PERL)@echo not running@' -i ../Makefile
+make install
+sed '/RTLDLIST=/s@/usr@@g' -i /usr/bin/ldd
+
+# Configure Glibc
+cat > /etc/nsswitch.conf << "EOF"
+passwd: files
+group: files
+shadow: files
+
+hosts: files dns
+networks: files
+
+protocols: files
+services: files
+ethers: files
+rpc: files
+EOF
+
+# Add timezone data
+tar -xf ../../tzdata2025b.tar.gz
+
+ZONEINFO=/usr/share/zoneinfo
+mkdir -pv $ZONEINFO/{posix,right}
+
+for tz in etcetera southamerica northamerica europe africa antarctica  \
+          asia australasia backward; do
+    zic -L /dev/null   -d $ZONEINFO       ${tz}
+    zic -L /dev/null   -d $ZONEINFO/posix ${tz}
+    zic -L leapseconds -d $ZONEINFO/right ${tz}
+done
+
+cp -v zone.tab zone1970.tab iso3166.tab $ZONEINFO
+zic -d $ZONEINFO -p America/New_York
+unset ZONEINFO
+
+# Set your timezone (adjust as needed)
+ln -sfv /usr/share/zoneinfo/America/Los_Angeles /etc/localtime
+
+# Configure dynamic loader
+cat > /etc/ld.so.conf << "EOF"
+/usr/local/lib
+/opt/lib
+EOF
+
+# Configure limits
+cat > /etc/ld.so.conf << "EOF"
+/usr/local/lib
+/opt/lib
+EOF
+
+mkdir -pv /usr/lib/locale
+localedef -i C -f UTF-8 C.UTF-8
+localedef -i en_US -f UTF-8 en_US.UTF-8
+
+cd /sources
+rm -rf glibc-2.42
+```
+
+
+### Zlib-1.3.1 {#zlib-1-dot-3-dot-1}
+
+I had a bug with this package so I copied it from the host iso image.
+
+```nil
+sudo cp -av /usr/lib64/libz.so* /mnt/lfs/usr/lib/
+```
+
+Or do it the proper way:
+
+```sh
+tar -xf zlib-1.3.1.tar.xz
+cd zlib-1.3.1
+
+./configure --prefix=/usr
+
+make
+make check
+make install
+
+rm -fv /usr/lib/libz.a
+
+cd /sources
+rm -rf zlib-1.3.1
+```
+
+
+### Bzip2-1.0.8 {#bzip2-1-dot-0-dot-8}
+
+```sh
+tar -xf bzip2-1.0.8.tar.gz
+cd bzip2-1.0.8
+
+patch -Np1 -i ../bzip2-1.0.8-install_docs-1.patch
+
+sed -i 's@\(ln -s -f \)$(PREFIX)/bin/@\1@' Makefile
+sed -i "s@(PREFIX)/man@(PREFIX)/share/man@g" Makefile
+
+make -f Makefile-libbz2_so
+make clean
+make
+make PREFIX=/usr install
+
+cp -av libbz2.so.* /usr/lib
+ln -sv libbz2.so.1.0.8 /usr/lib/libbz2.so
+
+cp -v bzip2-shared /usr/bin/bzip2
+for i in /usr/bin/{bzcat,bunzip2}; do
+  ln -sfv bzip2 $i
+done
+
+rm -fv /usr/lib/libbz2.a
+
+cd /sources
+rm -rf bzip2-1.0.8
+```
+
+
+### Xz-5.8.1 {#xz-5-dot-8-dot-1}
+
+```sh
+tar -xf xz-5.8.1.tar.xz
+cd xz-5.8.1
+
+./configure --prefix=/usr    \
+            --disable-static \
+            --docdir=/usr/share/doc/xz-5.8.1
+
+make
+make check
+make install
+
+cd /sources
+rm -rf xz-5.8.1
+```
+
+
+### Lz4-1.10.0 {#lz4-1-dot-10-dot-0}
+
+```sh
+tar -xf lz4-1.10.0.tar.gz
+cd lz4-1.10.0
+
+make BUILD_STATIC=no PREFIX=/usr
+make -j1 check
+make BUILD_STATIC=no PREFIX=/usr install
+
+cd /sources
+rm -rf lz4-1.10.0
+```
+
+
+### Zstd-1.5.7 {#zstd-1-dot-5-dot-7}
+
+```sh
+tar -xf zstd-1.5.7.tar.gz
+cd zstd-1.5.7
+
+make prefix=/usr
+make check
+make prefix=/usr install
+
+rm -v /usr/lib/libzstd.a
+
+cd /sources
+rm -rf zstd-1.5.7
+```
+
+
+### File-5.46 {#file-5-dot-46}
+
+```sh
+tar -xf file-5.46.tar.gz
+cd file-5.46
+
+./configure --prefix=/usr
+
+make
+make check
+make install
+
+cd /sources
+rm -rf file-5.46
+```
+
+
+### Readline-8.3 {#readline-8-dot-3}
+
+```sh
+tar -xf readline-8.3.tar.gz
+cd readline-8.3
+
+sed -i '/MV.*old/d' Makefile.in
+sed -i '/{OLDSUFF}/c:' support/shlib-install
+
+./configure --prefix=/usr    \
+            --disable-static \
+            --with-curses    \
+            --docdir=/usr/share/doc/readline-8.3
+
+make SHLIB_LIBS="-lncursesw"
+make SHLIB_LIBS="-lncursesw" install
+
+install -v -m644 doc/*.{ps,pdf,html,dvi} /usr/share/doc/readline-8.3
+
+cd /sources
+rm -rf readline-8.3
+```
+
+
+### M4-1.4.20 {#m4-1-dot-4-dot-20}
+
+```sh
+tar -xf m4-1.4.20.tar.xz
+cd m4-1.4.20
+
+./configure --prefix=/usr
+
+make
+make check
+make install
+
+cd /sources
+rm -rf m4-1.4.20
+```
+
+
+### Bc-7.0.3 {#bc-7-dot-0-dot-3}
+
+```sh
+tar -xf bc-7.0.3.tar.xz
+cd bc-7.0.3
+
+CC=gcc ./configure --prefix=/usr -G -O3 -r
+
+make
+make test
+make install
+
+cd /sources
+rm -rf bc-7.0.3
+```
+
+
+### Flex-2.6.4 {#flex-2-dot-6-dot-4}
+
+```sh
+tar -xf flex-2.6.4.tar.gz
+cd flex-2.6.4
+
+./configure --prefix=/usr \
+            --docdir=/usr/share/doc/flex-2.6.4 \
+            --disable-static
+
+make
+make check
+make install
+
+ln -sv flex /usr/bin/lex
+ln -sv flex.1 /usr/share/man/man1/lex.1
+
+cd /sources
+rm -rf flex-2.6.4
+```
+
+
+### Tcl-8.6.16 {#tcl-8-dot-6-dot-16}
+
+```sh
+tar -xf tcl8.6.16-src.tar.gz
+cd tcl8.6.16
+
+SRCDIR=$(pwd)
+cd unix
+./configure --prefix=/usr           \
+            --mandir=/usr/share/man
+
+make
+
+sed -e "s|$SRCDIR/unix|/usr/lib|" \
+    -e "s|$SRCDIR|/usr/include|"  \
+    -i tclConfig.sh
+
+sed -e "s|$SRCDIR/unix/pkgs/tdbc1.1.10|/usr/lib/tdbc1.1.10|" \
+    -e "s|$SRCDIR/pkgs/tdbc1.1.10/generic|/usr/include|"    \
+    -e "s|$SRCDIR/pkgs/tdbc1.1.10/library|/usr/lib/tcl8.6|" \
+    -e "s|$SRCDIR/pkgs/tdbc1.1.10|/usr/include|"            \
+    -i pkgs/tdbc1.1.10/tdbcConfig.sh
+
+sed -e "s|$SRCDIR/unix/pkgs/itcl4.2.5|/usr/lib/itcl4.2.5|" \
+    -e "s|$SRCDIR/pkgs/itcl4.2.5/generic|/usr/include|"    \
+    -e "s|$SRCDIR/pkgs/itcl4.2.5|/usr/include|"            \
+    -i pkgs/itcl4.2.5/itclConfig.sh
+
+unset SRCDIR
+
+make test
+make install
+
+chmod -v u+w /usr/lib/libtcl8.6.so
+
+make install-private-headers
+
+ln -sfv tclsh8.6 /usr/bin/tclsh
+mv /usr/share/man/man3/{Thread,Tcl_Thread}.3
+
+cd /sources
+rm -rf tcl8.6.16
+```
+
+
+### Expect-5.45.4 {#expect-5-dot-45-dot-4}
+
+```sh
+tar -xf expect5.45.4.tar.gz
+cd expect5.45.4
+
+python3 -c 'from pty import spawn; spawn(["echo", "ok"])'
+
+patch -Np1 -i ../expect-5.45.4-gcc15-1.patch
+
+./configure --prefix=/usr           \
+            --with-tcl=/usr/lib     \
+            --enable-shared         \
+            --disable-rpath         \
+            --mandir=/usr/share/man \
+            --with-tclinclude=/usr/include
+
+make
+make test
+make install
+ln -svf expect5.45.4/libexpect5.45.4.so /usr/lib
+
+cd /sources
+rm -rf expect5.45.4
+```
+
+
+### DejaGNU-1.6.3 {#dejagnu-1-dot-6-dot-3}
+
+```sh
+tar -xf dejagnu-1.6.3.tar.gz
+cd dejagnu-1.6.3
+
+mkdir -v build
+cd build
+
+../configure --prefix=/usr
+makeinfo --html --no-split -o doc/dejagnu.html ../doc/dejagnu.texi
+makeinfo --plaintext       -o doc/dejagnu.txt  ../doc/dejagnu.texi
+
+make install
+install -v -dm755  /usr/share/doc/dejagnu-1.6.3
+install -v -m644   doc/dejagnu.{html,txt} /usr/share/doc/dejagnu-1.6.3
+
+make check
+
+cd /sources
+rm -rf dejagnu-1.6.3
+```
+
+
+### Pkgconf-2.5.1 {#pkgconf-2-dot-5-dot-1}
+
+```sh
+tar -xf pkgconf-2.5.1.tar.xz
+cd pkgconf-2.5.1
+
+./configure --prefix=/usr              \
+            --disable-static           \
+            --docdir=/usr/share/doc/pkgconf-2.5.1
+
+make
+make install
+
+ln -sv pkgconf   /usr/bin/pkg-config
+ln -sv pkgconf.1 /usr/share/man/man1/pkg-config.1
+
+cd /sources
+rm -rf pkgconf-2.5.1
+```
+
+
+### Binutils-2.45 {#binutils-2-dot-45}
+
+```sh
+tar -xf binutils-2.45.tar.xz
+cd binutils-2.45
+
+mkdir -v build
+cd build
+
+../configure --prefix=/usr       \
+             --sysconfdir=/etc   \
+             --enable-gold       \
+             --enable-ld=default \
+             --enable-plugins    \
+             --enable-shared     \
+             --disable-werror    \
+             --enable-64-bit-bfd \
+             --enable-new-dtags  \
+             --with-system-zlib  \
+             --enable-default-hash-style=gnu
+
+make tooldir=/usr
+
+make -k check
+
+make tooldir=/usr install
+
+rm -fv /usr/lib/lib{bfd,ctf,ctf-nobfd,gprofng,opcodes,sframe}.a
+
+cd /sources
+rm -rf binutils-2.45
+```
+
+
+### GMP-6.3.0 {#gmp-6-dot-3-dot-0}
+
+```sh
+tar -xf gmp-6.3.0.tar.xz
+cd gmp-6.3.0
+
+./configure --prefix=/usr    \
+            --enable-cxx     \
+            --disable-static \
+            --docdir=/usr/share/doc/gmp-6.3.0
+
+make
+make html
+
+make check 2>&1 | tee gmp-check-log
+awk '/# PASS:/{total+=$3} ; END{print total}' gmp-check-log
+
+make install
+make install-html
+
+cd /sources
+rm -rf gmp-6.3.0
+```
+
+
+### MPFR-4.2.2 {#mpfr-4-dot-2-dot-2}
+
+```sh
+tar -xf mpfr-4.2.2.tar.xz
+cd mpfr-4.2.2
+
+./configure --prefix=/usr        \
+            --disable-static     \
+            --enable-thread-safe \
+            --docdir=/usr/share/doc/mpfr-4.2.2
+
+make
+make html
+
+make check
+
+make install
+make install-html
+
+cd /sources
+rm -rf mpfr-4.2.2
+```
+
+
+### MPC-1.3.1 {#mpc-1-dot-3-dot-1}
+
+```sh
+tar -xf mpc-1.3.1.tar.gz
+cd mpc-1.3.1
+
+./configure --prefix=/usr    \
+            --disable-static \
+            --docdir=/usr/share/doc/mpc-1.3.1
+
+make
+make html
+
+make check
+
+make install
+make install-html
+
+cd /sources
+rm -rf mpc-1.3.1
+```
+
+
+### Attr-2.5.2 {#attr-2-dot-5-dot-2}
+
+```sh
+tar -xf attr-2.5.2.tar.gz
+cd attr-2.5.2
+
+./configure --prefix=/usr     \
+            --disable-static  \
+            --sysconfdir=/etc \
+            --docdir=/usr/share/doc/attr-2.5.2
+
+make
+make check
+make install
+
+cd /sources
+rm -rf attr-2.5.2
+```
+
+
+### Acl-2.3.2 {#acl-2-dot-3-dot-2}
+
+```sh
+tar -xf acl-2.3.2.tar.xz
+cd acl-2.3.2
+
+./configure --prefix=/usr         \
+            --disable-static      \
+            --docdir=/usr/share/doc/acl-2.3.2
+
+make
+make install
+
+cd /sources
+rm -rf acl-2.3.2
+```
+
+
+### Libcap-2.76 {#libcap-2-dot-76}
+
+```sh
+tar -xf libcap-2.76.tar.xz
+cd libcap-2.76
+
+sed -i '/install -m.*STA/d' libcap/Makefile
+
+make prefix=/usr lib=lib
+make test
+make prefix=/usr lib=lib install
+
+cd /sources
+rm -rf libcap-2.76
+```
+
+
+### Libxcrypt-4.4.38 {#libxcrypt-4-dot-4-dot-38}
+
+We can ignore note about api headers
+
+```sh
+tar -xf libxcrypt-4.4.38.tar.xz
+cd libxcrypt-4.4.38
+
+./configure --prefix=/usr                \
+            --enable-hashes=strong,glibc \
+            --enable-obsolete-api=no     \
+            --disable-static             \
+            --disable-failure-tokens
+
+make
+make check
+make install
+
+cd /sources
+rm -rf libxcrypt-4.4.38
+```
+
+
+### Shadow-4.18.0 {#shadow-4-dot-18-dot-0}
+
+```sh
+tar -xf shadow-4.18.0.tar.xz
+cd shadow-4.18.0
+
+sed -i 's/groups$(EXEEXT) //' src/Makefile.in
+find man -name Makefile.in -exec sed -i 's/groups\.1 / /'   {} \;
+find man -name Makefile.in -exec sed -i 's/getspnam\.3 / /' {} \;
+find man -name Makefile.in -exec sed -i 's/passwd\.5 / /'   {} \;
+
+sed -e 's:#ENCRYPT_METHOD DES:ENCRYPT_METHOD YESCRYPT:' \
+    -e 's:/var/spool/mail:/var/mail:'                   \
+    -e '/PATH=/{s@/sbin:@@;s@/bin:@@}'                  \
+    -i etc/login.defs
+
+touch /usr/bin/passwd
+./configure --sysconfdir=/etc   \
+            --disable-static    \
+            --with-{b,yes}crypt \
+            --without-libbsd    \
+            --with-group-name-max-length=32
+
+make
+make exec_prefix=/usr install
+make -C man install-man
+
+pwconv
+grpconv
+
+mkdir -p /etc/default
+useradd -D --gid 999
+
+sed -i '/MAIL/s/yes/no/' /etc/default/useradd
+
+cd /sources
+rm -rf shadow-4.18.0
+```
+
+
+### GCC-15.2.0 {#gcc-15-dot-2-dot-0}
+
+Check gcc failures with the link in the build logs in the book
+pr0576 or whatever is a known fail
+
+```sh
+tar -xf gcc-15.2.0.tar.xz
+cd gcc-15.2.0
+
+case $(uname -m) in
+  x86_64)
+    sed -e '/m64=/s/lib64/lib/' \
+        -i.orig gcc/config/i386/t-linux64
+  ;;
+esac
+
+mkdir -v build
+cd build
+
+../configure --prefix=/usr            \
+             LD=ld                    \
+             --enable-languages=c,c++ \
+             --enable-default-pie     \
+             --enable-default-ssp     \
+             --enable-host-pie        \
+             --disable-multilib       \
+             --disable-bootstrap      \
+             --disable-fixincludes    \
+             --with-system-zlib
+
+make
+
+# Test suite (takes a long time)
+ulimit -s -H unlimited
+sed -e '/cpython/d'               -i ../gcc/testsuite/gcc.dg/plugin/plugin.exp
+sed -e 's/no-pic /&-no-pie /'     -i ../gcc/testsuite/gcc.target/i386/pr113689-1.c
+sed -e 's/300000/(1|300000)/'     -i ../libgomp/testsuite/libgomp.c-c++-common/pr94366.c
+sed -e 's/{ target nonpic }//' -e '/GOTPCREL/d' -i ../gcc/testsuite/gcc.target/i386/fentryname3.c
+
+chown -R tester .
+su tester -c "PATH=$PATH make -k check"
+
+# See test results
+../contrib/test_summary
+
+make install
+
+chown -v -R root:root \
+    /usr/lib/gcc/$(gcc -dumpmachine)/15.2.0/include{,-fixed}
+
+ln -svr /usr/bin/cpp /usr/lib
+
+ln -sv gcc.1 /usr/share/man/man1/cc.1
+
+ln -sfv ../../libexec/gcc/$(gcc -dumpmachine)/15.2.0/liblto_plugin.so \
+        /usr/lib/bfd-plugins/
+
+echo 'int main(){}' > dummy.c
+cc dummy.c -v -Wl,--verbose &> dummy.log
+readelf -l a.out | grep ': /lib'
+
+# Should output: [Requesting program interpreter: /lib64/ld-linux-x86-64.so.2]
+
+grep -E -o '/usr/lib.*/S?crt[1in].*succeeded' dummy.log
+grep -B4 '^ /usr/include' dummy.log
+grep 'SEARCH.*/usr/lib' dummy.log |sed 's|; |\n|g'
+grep "/lib.*/libc.so.6 " dummy.log
+grep found dummy.log
+
+rm -v dummy.c a.out dummy.log
+
+mkdir -pv /usr/share/gdb/auto-load/usr/lib
+mv -v /usr/lib/*gdb.py /usr/share/gdb/auto-load/usr/lib
+
+cd /sources
+rm -rf gcc-15.2.0
+```
+
+
+### Ncurses-6.5-20250809 {#ncurses-6-dot-5-20250809}
+
+Ignore warning, and do cd test and play with some of these. could be good content. ./hanoi, ./knight
+
+```sh
+tar -xf ncurses-6.5-20250809.tar.gz
+cd ncurses-6.5-20250809
+
+./configure --prefix=/usr           \
+            --mandir=/usr/share/man \
+            --with-shared           \
+            --without-debug         \
+            --without-normal        \
+            --with-cxx-shared       \
+            --enable-pc-files       \
+            --with-pkg-config-libdir=/usr/lib/pkgconfig
+
+make
+make DESTDIR=$PWD/dest install
+install -vm755 dest/usr/lib/libncursesw.so.6.5 /usr/lib
+rm -v  dest/usr/lib/libncursesw.so.6.5
+sed -e 's/^#if.*XOPEN.*$/#if 1/' \
+    -i dest/usr/include/curses.h
+cp -av dest/* /
+
+for lib in ncurses form panel menu ; do
+    ln -sfv lib${lib}w.so /usr/lib/lib${lib}.so
+    ln -sfv ${lib}w.pc    /usr/lib/pkgconfig/${lib}.pc
+done
+
+ln -sfv libncursesw.so /usr/lib/libcurses.so
+
+cp -v -R doc -T /usr/share/doc/ncurses-6.5-20250809
+
+# Optional - play with demos
+make distclean
+./configure --prefix=/usr    \
+            --with-shared    \
+            --without-normal \
+            --without-debug  \
+            --without-cxx-binding \
+            --with-abi-version=5
+
+make sources libs
+cp -av lib/lib*.so.5* /usr/lib
+
+cd /sources
+rm -rf ncurses-6.5-20250809
+```
+
+
+### Sed-4.9 {#sed-4-dot-9}
+
+```sh
+tar -xf sed-4.9.tar.xz
+cd sed-4.9
+
+./configure --prefix=/usr
+
+make
+make html
+
+chown -R tester .
+su tester -c "PATH=$PATH make check"
+
+make install
+install -d -m755           /usr/share/doc/sed-4.9
+install -m644 doc/sed.html /usr/share/doc/sed-4.9
+
+cd /sources
+rm -rf sed-4.9
+```
+
+
+### Psmisc-23.7 {#psmisc-23-dot-7}
+
+```sh
+tar -xf psmisc-23.7.tar.xz
+cd psmisc-23.7
+
+./configure --prefix=/usr
+
+make
+make check
+make install
+
+cd /sources
+rm -rf psmisc-23.7
+```
+
+
+### Gettext-0.26 {#gettext-0-dot-26}
+
+```sh
+tar -xf gettext-0.26.tar.xz
+cd gettext-0.26
+
+./configure --prefix=/usr    \
+            --disable-static \
+            --docdir=/usr/share/doc/gettext-0.26
+
+make
+make check
+make install
+chmod -v 0755 /usr/lib/preloadable_libintl.so
+
+cd /sources
+rm -rf gettext-0.26
+```
+
+
+### Bison-3.8.2 {#bison-3-dot-8-dot-2}
+
+```sh
+tar -xf bison-3.8.2.tar.xz
+cd bison-3.8.2
+
+./configure --prefix=/usr --docdir=/usr/share/doc/bison-3.8.2
+
+make
+make check
+make install
+
+cd /sources
+rm -rf bison-3.8.2
+```
+
+
+### Grep-3.12 {#grep-3-dot-12}
+
+```sh
+tar -xf grep-3.12.tar.xz
+cd grep-3.12
+
+sed -i "s/echo/#echo/" src/egrep.sh
+
+./configure --prefix=/usr
+
+make
+make check
+make install
+
+cd /sources
+rm -rf grep-3.12
+```
+
+
+### Bash-5.3 {#bash-5-dot-3}
+
+```sh
+tar -xf bash-5.3.tar.gz
+cd bash-5.3
+
+./configure --prefix=/usr             \
+            --without-bash-malloc     \
+            --with-installed-readline \
+            bash_cv_strtold_broken=no \
+            --docdir=/usr/share/doc/bash-5.3
+
+make
+
+chown -R tester .
+
+su -s /usr/bin/expect tester << "EOF"
+set timeout -1
+spawn make tests
+expect eof
+lassign [wait] _ _ _ value
+exit $value
+EOF
+
+make install
+
+# Start a new shell
+exec /usr/bin/bash --login
+
+cd /sources
+rm -rf bash-5.3
+```
+
+
+### Libtool-2.5.4 {#libtool-2-dot-5-dot-4}
+
+```sh
+tar -xf libtool-2.5.4.tar.xz
+cd libtool-2.5.4
+
+./configure --prefix=/usr
+
+make
+make -k check
+make install
+
+rm -fv /usr/lib/libltdl.a
+
+cd /sources
+rm -rf libtool-2.5.4
+```
+
+
+### GDBM-1.26 {#gdbm-1-dot-26}
+
+```sh
+tar -xf gdbm-1.26.tar.gz
+cd gdbm-1.26
+
+./configure --prefix=/usr    \
+            --disable-static \
+            --enable-libgdbm-compat
+
+make
+make check
+make install
+
+cd /sources
+rm -rf gdbm-1.26
+```
+
+
+### Gperf-3.3 {#gperf-3-dot-3}
+
+```sh
+tar -xf gperf-3.3.tar.gz
+cd gperf-3.3
+
+./configure --prefix=/usr --docdir=/usr/share/doc/gperf-3.3
+
+make
+make -j1 check
+make install
+
+cd /sources
+rm -rf gperf-3.3
+```
+
+
+### Expat-2.7.1 {#expat-2-dot-7-dot-1}
+
+```sh
+tar -xf expat-2.7.1.tar.xz
+cd expat-2.7.1
+
+./configure --prefix=/usr    \
+            --disable-static \
+            --docdir=/usr/share/doc/expat-2.7.1
+
+make
+make check
+make install
+
+install -v -m644 doc/*.{html,css} /usr/share/doc/expat-2.7.1
+
+cd /sources
+rm -rf expat-2.7.1
+```
+
+
+### Inetutils-2.6 {#inetutils-2-dot-6}
+
+```sh
+tar -xf inetutils-2.6.tar.xz
+cd inetutils-2.6
+
+sed -i 's/def HAVE_TERMCAP_TGETENT/ 1/' telnet/telnet.c
+
+./configure --prefix=/usr        \
+            --bindir=/usr/bin    \
+            --localstatedir=/var \
+            --disable-logger     \
+            --disable-whois      \
+            --disable-rcp        \
+            --disable-rexec      \
+            --disable-rlogin     \
+            --disable-rsh        \
+            --disable-servers
+
+make
+make check
+make install
+
+mv -v /usr/{,s}bin/ifconfig
+
+cd /sources
+rm -rf inetutils-2.6
+```
+
+
+### Less-679 {#less-679}
+
+```sh
+tar -xf less-679.tar.gz
+cd less-679
+
+./configure --prefix=/usr --sysconfdir=/etc
+
+make
+make check
+make install
+
+cd /sources
+rm -rf less-679
+```
+
+
+### Perl-5.42.0 {#perl-5-dot-42-dot-0}
+
+```sh
+tar -xf perl-5.42.0.tar.xz
+cd perl-5.42.0
+
+export BUILD_ZLIB=False
+export BUILD_BZIP2=0
+
+sh Configure -des                                          \
+             -D prefix=/usr                                \
+             -D vendorprefix=/usr                          \
+             -D privlib=/usr/lib/perl5/5.42/core_perl      \
+             -D archlib=/usr/lib/perl5/5.42/core_perl      \
+             -D sitelib=/usr/lib/perl5/5.42/site_perl      \
+             -D sitearch=/usr/lib/perl5/5.42/site_perl     \
+             -D vendorlib=/usr/lib/perl5/5.42/vendor_perl  \
+             -D vendorarch=/usr/lib/perl5/5.42/vendor_perl \
+             -D man1dir=/usr/share/man/man1                \
+             -D man3dir=/usr/share/man/man3                \
+             -D pager="/usr/bin/less -isR"                 \
+             -D useshrplib                                 \
+             -D usethreads
+
+make
+TEST_JOBS=$(nproc) make test_harness
+make install
+unset BUILD_ZLIB BUILD_BZIP2
+
+cd /sources
+rm -rf perl-5.42.0
+```
+
+
+### XML::Parser-2.47 {#xml-parser-2-dot-47}
+
+```sh
+tar -xf XML-Parser-2.47.tar.gz
+cd XML-Parser-2.47
+
+perl Makefile.PL
+
+make
+make test
+make install
+
+cd /sources
+rm -rf XML-Parser-2.47
+```
+
+
+### Intltool-0.51.0 {#intltool-0-dot-51-dot-0}
+
+```sh
+tar -xf intltool-0.51.0.tar.gz
+cd intltool-0.51.0
+
+sed -i 's:\\\${:\\\$\\{:' intltool-update.in
+
+./configure --prefix=/usr
+
+make
+make check
+make install
+install -v -Dm644 doc/I18N-HOWTO /usr/share/doc/intltool-0.51.0/I18N-HOWTO
+
+cd /sources
+rm -rf intltool-0.51.0
+```
+
+
+### Autoconf-2.72 {#autoconf-2-dot-72}
+
+```sh
+tar -xf autoconf-2.72.tar.xz
+cd autoconf-2.72
+
+./configure --prefix=/usr
+
+make
+make check
+make install
+
+cd /sources
+rm -rf autoconf-2.72
+```
+
+
+### Automake-1.18.1 {#automake-1-dot-18-dot-1}
+
+```sh
+tar -xf automake-1.18.1.tar.xz
+cd automake-1.18.1
+
+./configure --prefix=/usr --docdir=/usr/share/doc/automake-1.18.1
+
+make
+make -j$(($(nproc)>4?$(nproc):4)) check
+make install
+
+cd /sources
+rm -rf automake-1.18.1
+```
+
+
+### OpenSSL-3.5.2 {#openssl-3-dot-5-dot-2}
+
+```sh
+tar -xf openssl-3.5.2.tar.gz
+cd openssl-3.5.2
+
+./config --prefix=/usr         \
+         --openssldir=/etc/ssl \
+         --libdir=lib          \
+         shared                \
+         zlib-dynamic
+
+make
+HARNESS_JOBS=$(nproc) make test
+sed -i '/INSTALL_LIBS/s/libcrypto.a libssl.a//' Makefile
+make MANSUFFIX=ssl install
+
+mv -v /usr/share/doc/openssl /usr/share/doc/openssl-3.5.2
+
+cp -vfr doc/* /usr/share/doc/openssl-3.5.2
+
+cd /sources
+rm -rf openssl-3.5.2
+```
+
+
+### Libelf from Elfutils-0.193 {#libelf-from-elfutils-0-dot-193}
+
+Known failure in dwarf_scrlang_check
+
+```sh
+tar -xf elfutils-0.193.tar.bz2
+cd elfutils-0.193
+
+./configure --prefix=/usr                \
+            --disable-debuginfod         \
+            --enable-libdebuginfod=dummy
+
+make
+make check
+make -C libelf install
+install -vm644 config/libelf.pc /usr/lib/pkgconfig
+rm /usr/lib/libelf.a
+
+cd /sources
+rm -rf elfutils-0.193
+```
+
+
+### Libffi-3.5.2 {#libffi-3-dot-5-dot-2}
+
+```sh
+tar -xf libffi-3.5.2.tar.gz
+cd libffi-3.5.2
+
+./configure --prefix=/usr          \
+            --disable-static       \
+            --with-gcc-arch=native
+
+make
+make check
+make install
+
+cd /sources
+rm -rf libffi-3.5.2
+```
+
+
+### Python-3.13.7 {#python-3-dot-13-dot-7}
+
+Known expected warning can be surpressed by adding root user action to the global pip.conf like so
+
+```sh
+tar -xf Python-3.13.7.tar.xz
+cd Python-3.13.7
+
+./configure --prefix=/usr        \
+            --enable-shared      \
+            --with-system-expat  \
+            --enable-optimizations
+
+make
+make test
+make install
+
+cat > /etc/pip.conf << EOF
+[global]
+root-user-action = ignore
+disable-pip-version-check = true
+EOF
+
+install -v -dm755 /usr/share/doc/python-3.13.7/html
+
+tar --no-same-owner \
+    -xvf ../python-3.13.7-docs-html.tar.bz2
+cp -R --no-preserve=mode python-3.13.7-docs-html/* \
+    /usr/share/doc/python-3.13.7/html
+
+cd /sources
+rm -rf Python-3.13.7
+```
+
+
+### Flit-Core-3.12.0 {#flit-core-3-dot-12-dot-0}
+
+```sh
+tar -xf flit_core-3.12.0.tar.gz
+cd flit_core-3.12.0
+
+pip3 wheel -w dist --no-cache-dir --no-build-isolation --no-deps $PWD
+
+pip3 install --no-index --no-user --find-links dist flit_core
+
+cd /sources
+rm -rf flit_core-3.12.0
+```
+
+
+### Packaging-25.0 {#packaging-25-dot-0}
+
+```sh
+tar -xf packaging-25.0.tar.gz
+cd packaging-25.0
+
+pip3 wheel -w dist --no-cache-dir --no-build-isolation --no-deps $PWD
+
+pip3 install --no-index --no-user --find-links dist packaging
+
+cd /sources
+rm -rf packaging-25.0
+```
+
+
+### Wheel-0.46.1 {#wheel-0-dot-46-dot-1}
+
+```sh
+tar -xf wheel-0.46.1.tar.gz
+cd wheel-0.46.1
+
+pip3 wheel -w dist --no-cache-dir --no-build-isolation --no-deps $PWD
+
+pip3 install --no-index --find-links=dist wheel
+
+cd /sources
+rm -rf wheel-0.46.1
+```
+
+
+### Setuptools-80.9.0 {#setuptools-80-dot-9-dot-0}
+
+```sh
+tar -xf setuptools-80.9.0.tar.gz
+cd setuptools-80.9.0
+
+pip3 wheel -w dist --no-cache-dir --no-build-isolation --no-deps $PWD
+
+pip3 install --no-index --find-links dist setuptools
+
+cd /sources
+rm -rf setuptools-80.9.0
+```
+
+
+### Ninja-1.13.1 {#ninja-1-dot-13-dot-1}
+
+```sh
+tar -xf ninja-1.13.1.tar.gz
+cd ninja-1.13.1
+
+export NINJAJOBS=$(nproc)
+
+sed -i '/int Guess/a \
+  int   j = 0;\
+  char* jobs = getenv( "NINJAJOBS" );\
+  if ( jobs != NULL ) j = atoi( jobs );\
+  if ( j > 0 ) return j;\
+' src/ninja.cc
+
+python3 configure.py --bootstrap
+
+./ninja ninja_test
+./ninja_test --gtest_filter=-SubprocessTest.SetWithLots
+
+install -vm755 ninja /usr/bin/
+install -vDm644 misc/bash-completion /usr/share/bash-completion/completions/ninja
+install -vDm644 misc/zsh-completion  /usr/share/zsh/site-functions/_ninja
+
+cd /sources
+rm -rf ninja-1.13.1
+```
+
+
+### Meson-1.8.3 {#meson-1-dot-8-dot-3}
+
+```sh
+tar -xf meson-1.8.3.tar.gz
+cd meson-1.8.3
+
+pip3 wheel -w dist --no-cache-dir --no-build-isolation --no-deps $PWD
+
+pip3 install --no-index --find-links dist meson
+install -vDm644 data/shell-completions/bash/meson /usr/share/bash-completion/completions/meson
+install -vDm644 data/shell-completions/zsh/_meson /usr/share/zsh/site-functions/_meson
+
+cd /sources
+rm -rf meson-1.8.3
+```
+
+
+### Kmod-34.2 {#kmod-34-dot-2}
+
+```sh
+tar -xf kmod-34.2.tar.xz
+cd kmod-34.2
+
+./configure --prefix=/usr     \
+            --sysconfdir=/etc \
+            --with-openssl    \
+            --with-xz         \
+            --with-zstd       \
+            --with-zlib       \
+            --disable-manpages
+
+make
+make install
+
+for target in depmod insmod modinfo modprobe rmmod; do
+  ln -sfv ../bin/kmod /usr/sbin/$target
+  rm -fv /usr/bin/$target
+done
+
+cd /sources
+rm -rf kmod-34.2
+```
+
+
+### Coreutils-9.7 {#coreutils-9-dot-7}
+
+```sh
+tar -xf coreutils-9.7.tar.xz
+cd coreutils-9.7
+
+patch -Np1 -i ../coreutils-9.7-i18n-2.patch
+
+autoreconf -fiv
+FORCE_UNSAFE_CONFIGURE=1 ./configure \
+            --prefix=/usr            \
+            --enable-no-install-program=kill,uptime
+
+make
+make NON_ROOT_USERNAME=tester check-root
+
+groupadd -g 102 dummy -U tester
+
+chown -R tester .
+
+su tester -c "PATH=$PATH make -k RUN_EXPENSIVE_TESTS=yes check"
+
+groupdel dummy
+
+make install
+
+mv -v /usr/bin/chroot /usr/sbin
+mv -v /usr/share/man/man1/chroot.1 /usr/share/man/man8/chroot.8
+sed -i 's/"1"/"8"/' /usr/share/man/man8/chroot.8
+
+cd /sources
+rm -rf coreutils-9.7
+```
+
+
+### Diffutils-3.12 {#diffutils-3-dot-12}
+
+```sh
+tar -xf diffutils-3.12.tar.xz
+cd diffutils-3.12
+
+./configure --prefix=/usr
+
+make
+make check
+make install
+
+cd /sources
+rm -rf diffutils-3.12
+```
+
+
+### Gawk-5.3.2 {#gawk-5-dot-3-dot-2}
+
+```sh
+tar -xf gawk-5.3.2.tar.xz
+cd gawk-5.3.2
+
+sed -i 's/extras//' Makefile.in
+
+./configure --prefix=/usr
+
+make
+chown -R tester .
+su tester -c "PATH=$PATH make check"
+rm -f /usr/bin/gawk-5.3.2
+make install
+
+ln -sv gawk.1 /usr/share/man/man1/awk.1
+
+mkdir -pv                                   /usr/share/doc/gawk-5.3.2
+cp    -v doc/{awkforai.txt,*.{eps,pdf,jpg}} /usr/share/doc/gawk-5.3.2
+
+cd /sources
+rm -rf gawk-5.3.2
+```
+
+
+### Findutils-4.10.0 {#findutils-4-dot-10-dot-0}
+
+```sh
+tar -xf findutils-4.10.0.tar.xz
+cd findutils-4.10.0
+
+./configure --prefix=/usr --localstatedir=/var/lib/locate
+
+make
+chown -R tester .
+su tester -c "PATH=$PATH make check"
+
+make install
+
+cd /sources
+rm -rf findutils-4.10.0
+```
+
+
+### Groff-1.23.0 {#groff-1-dot-23-dot-0}
+
+```sh
+tar -xf groff-1.23.0.tar.gz
+cd groff-1.23.0
+
+PAGE=letter ./configure --prefix=/usr
+
+make
+make check
+make install
+
+cd /sources
+rm -rf groff-1.23.0
+```
+
+
+### GRUB-2.12 {#grub-2-dot-12}
+
+```sh
+tar -xf grub-2.12.tar.xz
+cd grub-2.12
+
+unset {C,CPP,CXX,LD}FLAGS
+
+echo depends bli part_gpt > grub-core/extra_deps.lst
+
+./configure --prefix=/usr          \
+            --sysconfdir=/etc      \
+            --disable-efiemu       \
+            --disable-werror
+
+make
+make install
+mv -v /etc/bash_completion.d/grub /usr/share/bash-completion/completions
+
+cd /sources
+rm -rf grub-2.12
+```
+
+
+### Gzip-1.14 {#gzip-1-dot-14}
+
+```sh
+tar -xf gzip-1.14.tar.xz
+cd gzip-1.14
+
+./configure --prefix=/usr
+
+make
+make check
+make install
+
+cd /sources
+rm -rf gzip-1.14
+```
+
+
+### IPRoute2-6.16.0 {#iproute2-6-dot-16-dot-0}
+
+```sh
+tar -xf iproute2-6.16.0.tar.xz
+cd iproute2-6.16.0
+
+sed -i /ARPD/d Makefile
+rm -fv man/man8/arpd.8
+
+make NETNS_RUN_DIR=/run/netns
+make SBINDIR=/usr/sbin install
+
+mkdir -pv             /usr/share/doc/iproute2-6.16.0
+cp -v COPYING README* /usr/share/doc/iproute2-6.16.0
+
+cd /sources
+rm -rf iproute2-6.16.0
+```
+
+
+### Kbd-2.8.0 {#kbd-2-dot-8-dot-0}
+
+```sh
+tar -xf kbd-2.8.0.tar.xz
+cd kbd-2.8.0
+
+patch -Np1 -i ../kbd-2.8.0-backspace-1.patch
+
+sed -i '/RESIZECONS_PROGS=/s/yes/no/' configure
+sed -i 's/resizecons.8 //' docs/man/man8/Makefile.in
+
+./configure --prefix=/usr --disable-vlock
+
+make
+make check
+make install
+
+cp -R -v docs/doc -T /usr/share/doc/kbd-2.8.0
+
+cd /sources
+rm -rf kbd-2.8.0
+```
+
+
+### Libpipeline-1.5.8 {#libpipeline-1-dot-5-dot-8}
+
+```sh
+tar -xf libpipeline-1.5.8.tar.gz
+cd libpipeline-1.5.8
+
+./configure --prefix=/usr
+
+make
+make check
+make install
+
+cd /sources
+rm -rf libpipeline-1.5.8
+```
+
+
+### Make-4.4.1 {#make-4-dot-4-dot-1}
+
+```sh
+tar -xf make-4.4.1.tar.gz
+cd make-4.4.1
+
+./configure --prefix=/usr
+
+make
+chown -R tester .
+su tester -c "PATH=$PATH make check"
+
+make install
+
+cd /sources
+rm -rf make-4.4.1
+```
+
+
+### Patch-2.8 {#patch-2-dot-8}
+
+```sh
+tar -xf patch-2.8.tar.xz
+cd patch-2.8
+
+./configure --prefix=/usr
+
+make
+make check
+make install
+
+cd /sources
+rm -rf patch-2.8
+```
+
+
+### Tar-1.35 {#tar-1-dot-35}
+
+Known failure test suite 233 (read comment)
+
+```sh
+tar -xf tar-1.35.tar.xz
+cd tar-1.35
+
+FORCE_UNSAFE_CONFIGURE=1  \
+./configure --prefix=/usr
+
+make
+make check
+make install
+make -C doc install-html docdir=/usr/share/doc/tar-1.35
+
+cd /sources
+rm -rf tar-1.35
+```
+
+
+### Texinfo-7.2 {#texinfo-7-dot-2}
+
+```sh
+tar -xf texinfo-7.2.tar.xz
+cd texinfo-7.2
+
+./configure --prefix=/usr
+
+make
+make check
+make install
+
+make TEXMF=/usr/share/texmf install-tex
+
+cd /sources
+rm -rf texinfo-7.2
+```
+
+
+### Vim-9.1.1629 {#vim-9-dot-1-dot-1629}
+
+Use my own vimrc, ignore vi symlink
+
+```sh
+tar -xf vim-9.1.1629.tar.gz
+cd vim-9.1.1629
+
+echo '#define SYS_VIMRC_FILE "/etc/vimrc"' >> src/feature.h
+
+./configure --prefix=/usr
+
+make
+chown -R tester .
+su tester -c "TERM=xterm-256color LANG=en_US.UTF-8 make -j1 test" \
+   &> vim-test.log
+
+make install
+
+ln -sv vim /usr/bin/vi
+for L in  /usr/share/man/{,*/}man1/vim.1; do
+    ln -sv vim.1 $(dirname $L)/vi.1
+done
+
+ln -sv ../vim/vim91/doc /usr/share/doc/vim-9.1.1629
+
+cat > /etc/vimrc << "EOF"
+" Begin /etc/vimrc
+
+filetype plugin indent on
+set expandtab
+set shiftwidth=4
+set softtabstop=4
+set tabstop=4
+set number
+set relativenumber
+set smartindent
+set showmatch
+set backspace=indent,eol,start
+syntax on
+
+if (&term == "xterm") || (&term == "putty")
+  set background=dark
+endif
+
+" End /etc/vimrc
+EOF
+
+cd /sources
+rm -rf vim-9.1.1629
+```
+
+
+### MarkupSafe-3.0.2 {#markupsafe-3-dot-0-dot-2}
+
+```sh
+tar -xf MarkupSafe-3.0.2.tar.gz
+cd MarkupSafe-3.0.2
+
+pip3 wheel -w dist --no-cache-dir --no-build-isolation --no-deps $PWD
+
+pip3 install --no-index --no-user --find-links dist Markupsafe
+
+cd /sources
+rm -rf MarkupSafe-3.0.2
+```
+
+
+### Jinja2-3.1.6 {#jinja2-3-dot-1-dot-6}
+
+```sh
+tar -xf jinja2-3.1.6.tar.gz
+cd jinja2-3.1.6
+
+pip3 wheel -w dist --no-cache-dir --no-build-isolation --no-deps $PWD
+
+pip3 install --no-index --no-user --find-links dist Jinja2
+
+cd /sources
+rm -rf jinja2-3.1.6
+```
+
+
+### Udev from Systemd-257.8 {#udev-from-systemd-257-dot-8}
+
+```sh
+tar -xf systemd-257.8.tar.gz
+cd systemd-257.8
+
+sed -i -e 's/GROUP="render"/GROUP="video"/' \
+       -e 's/GROUP="sgx", //' rules.d/50-udev-default.rules.in
+
+sed '/systemd-sysctl/s/^/#/' -i rules.d/99-systemd.rules.in
+
+sed '/NETWORK_DIRS/s/systemd/udev/' -i src/basic/path-lookup.h
+
+mkdir -p build
+cd       build
+
+meson setup ..                \
+      --prefix=/usr           \
+      --buildtype=release     \
+      -D mode=release         \
+      -D dev-kvm-mode=0660    \
+      -D link-udev-shared=false \
+      -D logind=false         \
+      -D vconsole=false
+
+export udev_helpers=$(grep "'name' :" ../src/udev/meson.build | \
+                      awk '{print $2}' | tr -d ",'" | grep -v 'udevadm')
+
+ninja udevadm systemd-hwdb \
+      $(ninja -n | grep -Eo '(src/(lib)?udev|rules.d|hwdb.d)/[^ ]*') \
+      $(realpath libudev.so --relative-to .) \
+      $udev_helpers
+
+install -vm755 -d {/usr/lib,/etc}/udev/{hwdb.d,rules.d,network}
+install -vm755 -d /usr/{lib,share}/pkgconfig
+install -vm755 udevadm                            /usr/bin/
+install -vm755 systemd-hwdb                       /usr/bin/udev-hwdb
+ln      -svfn  ../bin/udevadm                     /usr/sbin/udevd
+cp      -av    libudev.so{,*[0-9]}                /usr/lib/
+install -vm644 ../src/libudev/libudev.h           /usr/include/
+install -vm644 src/libudev/*.pc                   /usr/lib/pkgconfig/
+install -vm644 src/udev/*.pc                      /usr/share/pkgconfig/
+install -vm644 ../src/udev/udev.conf              /etc/udev/
+install -vm644 rules.d/* ../rules.d/README        /usr/lib/udev/rules.d/
+install -vm644 $(find ../rules.d/*.rules \
+                      -not -name '*power-switch*') /usr/lib/udev/rules.d/
+install -vm644 hwdb.d/*  ../hwdb.d/{*.hwdb,README} /usr/lib/udev/hwdb.d/
+install -vm755 $udev_helpers                      /usr/lib/udev
+install -vm644 ../network/99-default.link         /usr/lib/udev/network
+
+tar -xvf ../../udev-lfs-20230818.tar.xz
+make -f udev-lfs-20230818/Makefile.lfs install
+
+tar -xf ../../systemd-man-pages-257.8.tar.xz                            \
+    --no-same-owner --strip-components=1                              \
+    -C /usr/share/man --wildcards '*/udev*' '*/libudev*'             \
+                                  '*/systemd.link.5'                 \
+                                  '*/systemd-'{hwdb,udevd.service}.8
+
+sed 's|systemd/network|udev/network|'                                 \
+    /usr/share/man/man5/systemd.link.5                                \
+  > /usr/share/man/man5/udev.link.5
+
+sed 's/systemd\(\\\?-\)/udev\1/' /usr/share/man/man8/systemd-hwdb.8   \
+                                 > /usr/share/man/man8/udev-hwdb.8
+
+sed 's|lib.*udevd|sbin/udevd|'                                        \
+    /usr/share/man/man8/systemd-udevd.service.8                       \
+  > /usr/share/man/man8/udevd.8
+
+rm /usr/share/man/man*/systemd*
+
+unset udev_helpers
+
+udev-hwdb update
+
+cd /sources
+rm -rf systemd-257.8
+```
+
+
+### Man-DB-2.13.1 {#man-db-2-dot-13-dot-1}
+
+```sh
+tar -xf man-db-2.13.1.tar.xz
+cd man-db-2.13.1
+
+./configure --prefix=/usr                         \
+            --docdir=/usr/share/doc/man-db-2.13.1 \
+            --sysconfdir=/etc                     \
+            --disable-setuid                      \
+            --enable-cache-owner=bin              \
+            --with-browser=/usr/bin/lynx          \
+            --with-vgrind=/usr/bin/vgrind         \
+            --with-grap=/usr/bin/grap             \
+            --with-systemdtmpfilesdir=            \
+            --with-systemdsystemunitdir=
+
+make
+make check
+make install
+
+cd /sources
+rm -rf man-db-2.13.1
+```
+
+
+### Procps-ng-4.0.5 {#procps-ng-4-dot-0-dot-5}
+
+```sh
+tar -xf procps-ng-4.0.5.tar.xz
+cd procps-ng-4.0.5
+
+./configure --prefix=/usr                           \
+            --docdir=/usr/share/doc/procps-ng-4.0.5 \
+            --disable-static                        \
+            --disable-kill                          \
+            --with-systemd
+
+make src_w_LDADD='$(LDADD) -lsystemd'
+make check
+make install
+
+cd /sources
+rm -rf procps-ng-4.0.5
+```
+
+
+### Util-linux-2.41.1 {#util-linux-2-dot-41-dot-1}
+
+Kill error is known
+
+```sh
+tar -xf util-linux-2.41.1.tar.xz
+cd util-linux-2.41.1
+
+./configure --bindir=/usr/bin              \
+            --libdir=/usr/lib              \
+            --runstatedir=/run             \
+            --sbindir=/usr/sbin            \
+            --disable-chfn-chsh            \
+            --disable-login                \
+            --disable-nologin              \
+            --disable-su                   \
+            --disable-setpriv              \
+            --disable-runuser              \
+            --disable-pylibmount           \
+            --disable-static               \
+            --disable-liblastlog2          \
+            --without-python               \
+            ADJTIME_PATH=/var/lib/hwclock/adjtime \
+            --docdir=/usr/share/doc/util-linux-2.41.1
+
+make
+# Skip tests in chroot
+# chown -R tester .
+# su tester -c "make -k check"
+
+make install
+
+cd /sources
+rm -rf util-linux-2.41.1
+```
+
+
+### E2fsprogs-1.47.3 {#e2fsprogs-1-dot-47-dot-3}
+
+Known m_asdfasfd test fail
+
+```sh
+tar -xf e2fsprogs-1.47.3.tar.gz
+cd e2fsprogs-1.47.3
+
+mkdir -v build
+cd       build
+
+../configure --prefix=/usr           \
+             --sysconfdir=/etc       \
+             --enable-elf-shlibs     \
+             --disable-libblkid      \
+             --disable-libuuid       \
+             --disable-uuidd         \
+             --disable-fsck
+
+make
+make check
+make install
+
+rm -fv /usr/lib/{libcom_err,libe2p,libext2fs,libss}.a
+
+gunzip -v /usr/share/info/libext2fs.info.gz
+install-info --dir-file=/usr/share/info/dir /usr/share/info/libext2fs.info
+
+makeinfo -o      doc/com_err.info ../lib/et/com_err.texinfo
+install -v -m644 doc/com_err.info /usr/share/info
+install-info --dir-file=/usr/share/info/dir /usr/share/info/com_err.info
+
+sed 's/metadata_csum_seed,//' -i /etc/mke2fs.conf
+
+cd /sources
+rm -rf e2fsprogs-1.47.3
+```
+
+
+### Sysklogd-2.7.2 {#sysklogd-2-dot-7-dot-2}
+
+```sh
+tar -xf sysklogd-2.7.2.tar.gz
+cd sysklogd-2.7.2
+
+./configure --prefix=/usr      \
+            --sysconfdir=/etc  \
+            --runstatedir=/run \
+            --without-logger
+
+make
+make install
+
+cat > /etc/syslog.conf << "EOF"
+# Begin /etc/syslog.conf
+
+auth,authpriv.* -/var/log/auth.log
+*.*;auth,authpriv.none -/var/log/sys.log
+daemon.* -/var/log/daemon.log
+kern.* -/var/log/kern.log
+mail.* -/var/log/mail.log
+user.* -/var/log/user.log
+*.emerg *
+
+# End /etc/syslog.conf
+EOF
+
+cd /sources
+rm -rf sysklogd-2.7.2
+```
+
+
+### SysVinit-3.14 {#sysvinit-3-dot-14}
+
+```sh
+tar -xf sysvinit-3.14.tar.xz
+cd sysvinit-3.14
+
+patch -Np1 -i ../sysvinit-3.14-consolidated-1.patch
+
+make
+make install
+
+cd /sources
+rm -rf sysvinit-3.14
+```
+
+
+### Stripping Debug Symbols {#stripping-debug-symbols}
+
+Now we clean up debug symbols to save space:
+
+```sh
+save_usrlib="$(cd /usr/lib; ls ld-linux*[^g])
+             libc.so.6
+             libthread_db.so.1
+             libquadmath.so.0.0.0
+             libstdc++.so.6.0.33
+             libitm.so.1.0.0
+             libatomic.so.1.2.0"
+
+cd /usr/lib
+
+for LIB in $save_usrlib; do
+    objcopy --only-keep-debug --compress-debug-sections=zlib $LIB $LIB.dbg
+    cp $LIB /tmp/$LIB
+    strip --strip-unneeded /tmp/$LIB
+    objcopy --add-gnu-debuglink=$LIB.dbg /tmp/$LIB
+    install -vm755 /tmp/$LIB /usr/lib
+    rm /tmp/$LIB
+done
+
+online_usrbin="bash find strip"
+online_usrlib="libbfd-2.45.so
+               libsframe.so.1.0.0
+               libhistory.so.8.3
+               libncursesw.so.6.5
+               libm.so.6
+               libreadline.so.8.3
+               libz.so.1.3.1
+               libzstd.so.1.5.7
+               $(cd /usr/lib; find libnss*.so* -type f)"
+
+for BIN in $online_usrbin; do
+    cp /usr/bin/$BIN /tmp/$BIN
+    strip --strip-unneeded /tmp/$BIN
+    install -vm755 /tmp/$BIN /usr/bin
+    rm /tmp/$BIN
+done
+
+for LIB in $online_usrlib; do
+    cp /usr/lib/$LIB /tmp/$LIB
+    strip --strip-unneeded /tmp/$LIB
+    install -vm755 /tmp/$LIB /usr/lib
+    rm /tmp/$LIB
+done
+
+for i in $(find /usr/lib -type f -name \*.so* ! -name \*dbg) \
+         $(find /usr/lib -type f -name \*.a)                 \
+         $(find /usr/{bin,sbin,libexec} -type f); do
+    case "$online_usrbin $online_usrlib $save_usrlib" in
+        *$(basename $i)* )
+            ;;
+        * ) strip --strip-unneeded $i 2>/dev/null
+            ;;
+    esac
+done
+
+unset BIN LIB save_usrlib online_usrbin online_usrlib
+```
+
+
+### Cleaning Up {#cleaning-up}
+
+```sh
+rm -rf /tmp/{*,.*}
+find /usr/lib /usr/libexec -name \*.la -delete
+find /usr -depth -name $(uname -m)-lfs-linux-gnu\* | xargs rm -rf
+userdel -r tester
+```
+
+
+### GRUB BLFS LINK {#grub-blfs-link}
+
+mkdir BLFS
+cd BLFS
+screen -&gt; control A D
+cd /mnt/lfs/sources/BLFS
+(middle click freetype, middle click efitbootmgr, copy links..)
+wget <https://downloads.sourceforge.net/freetype/freetype-2.13.3.tar.xz>
+wget <https://downloads.sourceforge.net/freetype/freetype-doc-2.13.3.tar.xz>
+md5sum \* (eyeball check on this to match the md5sums)
+screen -r lfs
+extract freetype-2
+cd freetype-2
+follow instructions from here..
+<https://www.linuxfromscratch.org/blfs/view/12.4/general/freetype2.html>
+tar -xf ../freetype-doc-2.13.3.tar.xz --strip-components=2 -C docs
+...
+
+we need to get dependencies for efibootmgr...
+
+efivar-39 and popt-1.19
+skip api documentaiton for popt as it is optional
+get grub the same way, just the additional dependency
+then in BLFS, do
+
+```nil
+tar -xvf ../grub-2.
+```
+
+
+## Chapter 9 - System Configuration: {#chapter-9-system-configuration}
+
+
+### Managing Devies: {#managing-devies}
+
+Udev script wont work on qemu..
+We dont need to run it though because all it does is rename enp1s0 to eth0
+We can skip the rest of all this actually since we are not worried about changing our network interface.
+
+
+### Network Interface: {#network-interface}
+
+```nil
+cd /etc/sysconfig/
+vim ifconfig.enp1s0
+ONBOOT=yes
+IFACE=enp1s0
+SERVICE=ipv4-static
+IP=192.168.122.101
+GATEWAY=192.168.122.1
+PREFIX=24
+BROADCAST=192.168.122.255
+```
+
+You can get all this information from running ip a on another machine, or your host machine
+
+```nil
+vim /etc/resolv.conf
+# Begin /etc/resolv.conf
+
+nameserver 8.8.8.8
+nameserver 1.1.1.1
+
+# End /etc/resolv.conf
+```
+
+I use lfs, btw..
+
+```nil
+echo 'lfs-btw' >> /etc/hostname
+```
+
+/etc/hosts..
+
+```nil
+cat > /etc/hosts << "EOF"
+# Begin /etc/hosts
+
+127.0.0.1 localhost
+127.0.1.1 lfs-btw
+::1       localhost
+
+# End /etc/hosts
+EOF
+```
+
+
+### sysvinit {#sysvinit}
+
+Create inittab file for sysvinit
+
+```nil
+cat > /etc/inittab << "EOF"
+# Begin /etc/inittab
+
+id:3:initdefault:
+
+si::sysinit:/etc/rc.d/init.d/rc S
+
+l0:0:wait:/etc/rc.d/init.d/rc 0
+l1:S1:wait:/etc/rc.d/init.d/rc 1
+l2:2:wait:/etc/rc.d/init.d/rc 2
+l3:3:wait:/etc/rc.d/init.d/rc 3
+l4:4:wait:/etc/rc.d/init.d/rc 4
+l5:5:wait:/etc/rc.d/init.d/rc 5
+l6:6:wait:/etc/rc.d/init.d/rc 6
+
+ca:12345:ctrlaltdel:/sbin/shutdown -t1 -a -r now
+
+su:S06:once:/sbin/sulogin
+s1:1:respawn:/sbin/sulogin
+
+1:2345:respawn:/sbin/agetty --noclear tty1 9600
+2:2345:respawn:/sbin/agetty tty2 9600
+3:2345:respawn:/sbin/agetty tty3 9600
+4:2345:respawn:/sbin/agetty tty4 9600
+5:2345:respawn:/sbin/agetty tty5 9600
+6:2345:respawn:/sbin/agetty tty6 9600
+
+# End /etc/inittab
+EOF
+```
+
+Hardware clock: Linux only, leave it as 1
+
+```nil
+cat > /etc/sysconfig/clock << "EOF"
+# Begin /etc/sysconfig/clock
+
+UTC=1
+
+# Set this to any options you might need to give to hwclock,
+# such as machine hardware clock type for Alphas.
+CLOCKPARAMS=
+
+# End /etc/sysconfig/clock
+EOF
+```
+
+We can run this since we're on en-us_UTF-8
+
+```nil
+cat > /etc/sysconfig/console << "EOF"
+# Begin /etc/sysconfig/console
+
+UNICODE="1"
+FONT="Lat2-Terminus16"
+
+# End /etc/sysconfig/console
+EOF
+```
+
+If you are on a different keymap, such as gb, or romania or something, check out these instructions here on how to change that.
+
+The rest is optional, let's move on to generating the locales
+
+
+### Locale Configuration {#locale-configuration}
+
+For my situation, im on en_US.UTF-8, and you can check yours with \`locale -a\`
+
+so i'll do:
+
+```nil
+cat > /etc/profile << "EOF"
+# Begin /etc/profile
+
+for i in $(locale); do
+  unset ${i%=*}
+done
+
+if [[ "$TERM" = linux ]]; then
+  export LANG=C.UTF-8
+else
+  export LANG=en_US.UTF-8
+fi
+
+# End /etc/profile
+EOF
+```
+
+If you are on a different locale, you will need to run this command to figure out what to add to the suffix of en_&lt;&gt;
+
+LC_ALL=en_GB locale charmap
+
+
+## Chapter 10 - Make System Bootable: {#chapter-10-make-system-bootable}
+
+
+### Fstab {#fstab}
+
+I can make my fstab just like this, you just need to ensure your /dev/vda matches your actual partition names.
+
+```nil
+cat > /etc/fstab << "EOF"
+# Begin /etc/fstab
+
+# file system  mount-point    type     options             dump  fsck
+#                                                                order
+
+/dev/vda3      /              ext4     defaults            1     1
+/dev/vda1      /boot/efi      vfat     defaults            0     2
+/dev/vda2      swap           swap     pri=1               0     0
+proc           /proc          proc     nosuid,noexec,nodev 0     0
+sysfs          /sys           sysfs    nosuid,noexec,nodev 0     0
+devpts         /dev/pts       devpts   gid=5,mode=620      0     0
+tmpfs          /run           tmpfs    defaults            0     0
+devtmpfs       /dev           devtmpfs mode=0755,nosuid    0     0
+tmpfs          /dev/shm       tmpfs    nosuid,nodev        0     0
+cgroup2        /sys/fs/cgroup cgroup2  nosuid,noexec,nodev 0     0
+
+# End /etc/fstab
+EOF
+```
+
+
+### Kernel {#kernel}
+
+Hard part... but final boss if you will
+
+cd /sources
+tar -xvf linux-16
+cd linux-
+
+make mrproper
+make defconfig
+
+This creates a config based on my current system architecture. It doesnt make sense for me to customize the kernel here since your hardware will not be the same as mine, so I'll just show you the defaults and how to get it up and running.
+
+Lets add some defaults to get it working
+
+make menuconfig
+
+Actually everything here is good, but just verify some stuff
+For my situation, I'm going to just take a look at every default setting the guide offers, and provide those, as well as enable a few virtio drivers for my qemu setup. Also its important here to follow the blfs guide on EFI since we installed grub using efi.
+
+```nil
+Bare Minimum to Enable for QEMU/KVM VM:
+1. Virtio Drivers (CRITICAL - without these you won't see your disk!)
+Navigate to: Device Drivers → Block devices
+
+Enable: [*] Virtio block driver
+
+Navigate to: Device Drivers → Network device support
+
+Enable: [*] Virtio network driver
+
+Navigate to: Device Drivers → SCSI device support
+
+Enable: [*] virtio-scsi support
+
+Or search in menuconfig (press / then type VIRTIO):
+
+CONFIG_VIRTIO_BLK=y
+CONFIG_VIRTIO_NET=y
+CONFIG_VIRTIO_PCI=y
+CONFIG_SCSI_VIRTIO=y
+
+2. EXT4 Filesystem
+Navigate to: File systems
+
+Enable: [*] The Extended 4 (ext4) filesystem
+Already enabled in defconfig, but verify
+
+3. EFI Boot Support
+Navigate to: Processor type and features
+
+Enable: [*] EFI runtime service support
+Enable: [*] EFI stub support
+
+That's it
+Save and exit (Save → Exit), then:
+```
+
+time to build the kernel:
+
+```nil
+make
+make modules_install
+```
+
+Copy these boot files...
+Change ownership of this for BLFS
+
+```nil
+chown -R 0:0 ../linux-6.16.1
+```
+
+Skip the modprobe, we didnt do anything with usb ports so we are good.
+We're ready to install grub.
+
+
+### GRUB {#grub}
+
+Skip all of this, just go straight to BLFS page because we are on UEFI, not bios.
+I've installed grub over 100 times on efi, we can just do the following:
+
+mount the efi vars:
+
+```nil
+# mount efivarfs
+mountpoint /sys/firmware/efi/efivars || mount -v -t efivarfs efivarfs /sys/firmware/efi/efivars
+
+# Add efivarfs to fstab
+cat >> /etc/fstab << "EOF"
+efivarfs /sys/firmware/efi/efivars efivarfs defaults 0 0
+EOF
+
+# Install GRUB
+grub-install --target=x86_64-efi --efi-directory=/boot/efi --bootloader-id=LFS --recheck
+
+# Generate config
+We need to generate a minimal grub config here, we can do so by just pasting this in here:
+cat > /boot/grub/grub.cfg << EOF
+# Begin /boot/grub/grub.cfg
+set default=0
+set timeout=5
+
+insmod part_gpt
+insmod ext2
+set root=(hd0,3)
+
+insmod efi_gop
+insmod efi_uga
+if loadfont /boot/grub/fonts/unicode.pf2; then
+  terminal_output gfxterm
+fi
+
+menuentry "GNU/Linux, Linux 6.16.1-lfs-12.4" {
+  linux   /boot/vmlinuz-6.16.1-lfs-12.4 root=/dev/vda3 ro
+}
+
+menuentry "Firmware Setup" {
+  fwsetup
+}
+EOF
+```
+
+Note i've changed sda to vda here, and 2 to 3, because that is where my root file system is.
+I cant believe I'm about to say this but its finally time to reboot into our LFS system..
+
+
+## Reboot and Pray: {#reboot-and-pray}
+
+```nil
+# Exit chroot
+logout
+
+# Unmount everything (from live CD)
+umount -v /mnt/lfs/dev/pts
+umount -v /mnt/lfs/dev
+umount -v /mnt/lfs/run
+umount -v /mnt/lfs/proc
+umount -v /mnt/lfs/sys
+umount -v /mnt/lfs/boot/efi
+umount -v /mnt/lfs
+
+# Reboot
+reboot
+```
+
+
+## Final Thoughts: {#final-thoughts}
+
+Alright, that's it. We just built an entire Linux system from scratch. This is probably
+the most educational project you can do in Linux.
+
+We compiled over 80 packages, built a custom kernel, configured a bootloader, and created
+a fully functional system. You now understand how Linux works at a fundamental level - how
+packages depend on each other, how the toolchain works, how the boot process functions.
+
+This is just the base LFS system. From here, you can continue with BLFS (Beyond Linux From
+Scratch) to add X11, desktop environments, browsers, and all the software you actually use
+day to day.
+
+If you provide proof that you installed LFS using this guide, I will give you a special role in my discord server.
+
+Thanks so much for checking out this tutorial. If you got value from it, and you want to find more tutorials like this, check out
+my youtube channel here: [YouTube](https://youtube.com/@tony-btw), or my website here: [tony,btw](https://www.tonybtw.com)
+
+You can support me here: [kofi](https://ko-fi.com/tonybtw)
