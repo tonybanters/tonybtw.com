@@ -223,24 +223,43 @@ For NixOS, noctalia-shell needs to be added as a flake input. Add this to your f
 
 ```nix
 {
+  description = "NixOS configuration with Noctalia";
+
   inputs = {
     nixpkgs.url = "github:nixos/nixpkgs/nixos-unstable";
-    noctalia-shell.url = "github:Noctalia-Shell/noctalia-shell";
+
+    quickshell = {
+      url = "github:outfoxxed/quickshell";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
+    noctalia = {
+      url = "github:noctalia-dev/noctalia-shell";
+      inputs.nixpkgs.follows = "nixpkgs";
+      inputs.quickshell.follows = "quickshell";  # Use same quickshell version
+    };
   };
 
-  outputs = { self, nixpkgs, noctalia-shell }: {
-    nixosConfigurations.yourHostname = nixpkgs.lib.nixosSystem {
-      system = "x86_64-linux";
+  outputs = inputs@{ self, nixpkgs, ... }: {
+    nixosConfigurations.awesomebox = nixpkgs.lib.nixosSystem {
       modules = [
-        ./configuration.nix
-        ({ pkgs, ... }: {
-          environment.systemPackages = [
-            noctalia-shell.packages.x86_64-linux.default
-          ];
-        })
+        # ... other modules
+        ./noctalia.nix
       ];
     };
   };
+}
+```
+
+And in your configuration.nix:
+
+```nix 
+{ pkgs, inputs, ... }:
+{
+  # install package
+  environment.systemPackages = with pkgs; [
+    inputs.noctalia.packages.${system}.default
+    # ... maybe other stuff
+  ];
 }
 ```
 
@@ -256,7 +275,7 @@ cd quickshell
 # Follow the build instructions in their README
 
 # Then install noctalia-shell
-git clone https://github.com/Noctalia-Shell/noctalia-shell
+git clone https://github.com/noctalia-dev/noctalia-shell
 # Copy the config to ~/.config/quickshell/noctalia
 ```
 
