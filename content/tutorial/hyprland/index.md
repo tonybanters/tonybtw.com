@@ -6,7 +6,6 @@ date: 2025-08-24
 draft: false
 image: "/img/hyprland.png"
 showTableOfContents: true
-showTableOfContents: true
 ---
 
 ## Intro {#intro}
