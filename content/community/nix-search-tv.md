@@ -74,6 +74,7 @@ pkgs.writeShellApplication {
     fzf
     nix-search-tv
   ];
+  excludeShellChecks = ["SC2016"];  # Avoid ShellCheck false positive [1]
   text = builtins.readFile "${pkgs.nix-search-tv.src}/nixpkgs.sh";
 }
 ```
@@ -92,3 +93,4 @@ _PS: both integrations are executable with `ns`_
 - nix-search-tv: https://github.com/3timeslazy/nix-search-tv
 - television: https://github.com/alexpasmantier/television
 - fzf: https://github.com/junegunn/fzf
+- [1] https://github.com/3timeslazy/nix-search-tv/issues/14
