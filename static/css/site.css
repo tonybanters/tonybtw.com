@@ -717,8 +717,6 @@ aside.content-panel {
 }
 
 .tutorial-card {
-  width: 426px;
-  /* max-width: 480px; */
   background-color: var(--blk);
   border: 1px solid var(--blu);
   border-radius: 8px;
