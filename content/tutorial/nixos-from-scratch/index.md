@@ -300,6 +300,7 @@ We're going to create our dotfiles directory in our home folder so we can handle
 ```sh
 mkdir ~/nixos-dotfiles
 sudo cp -R /etc/nixos/* ~/nixos-dotfiles/.
+sudo chown -R tony:users .
 mkdir ~/nixos-dotfiles/config
 git clone https://github.com/tonybanters/qtile ~/nixos-dotfiles/config/qtile
 vim ~/nixos-dotfiles/home.nix
