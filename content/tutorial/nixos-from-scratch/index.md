@@ -390,7 +390,7 @@ Let's edit our qtile config again, and a hot reload should work. Awesome.
 We can clean this up by declaring dotfiles, and creating a variable for mkOutOfStoreSymlink (its too verbose this way).
 
 ```nix
-{ config, ... }
+{ config, ... }:
 
 let
     dotfiles = "${config.home.homeDirectory}/nixos-dotfiles/config";
@@ -416,7 +416,7 @@ in
 And one more step would be to just make a for loop to iterate over a list of configs, and that way we can remove code duplication.
 
 ```nix
-{ config, ... }
+{ config, ... }:
 
 let
     dotfiles = "${config.home.homeDirectory}/nixos-dotfiles/config";
@@ -462,7 +462,7 @@ The structure will look like so:
 Inside of that neovim.nix file, we can do the following:
 
 ```nix
-{ config, pkgs, lib, ...}
+{ config, pkgs, lib, ...}:
 
 {
   # Install Neovim and dependencies
