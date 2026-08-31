@@ -268,7 +268,7 @@ Alright, I'm going to clone a couple of my dotfiles for my terminal, my hyprland
 mkdir ~/nixos-dotfiles/config
 cd ~/nixos-dotfiles/config
 git clone https://github.com/tonybanters/hypr
-git clone https://github.com/tonybanters/waybay
+git clone https://github.com/tonybanters/waybar
 git clone https://github.com/tonybanters/foot
 ```
 
@@ -283,7 +283,7 @@ home.file.".config/foot".source = ./config/foot;
 And we can rebuild like so:
 
 ```nil
-sudo nixos-rebuild swith --flake ~/nixos-dotifles#hyprland-btw
+sudo nixos-rebuild switch --flake ~/nixos-dotifles#hyprland-btw
 ```
 
 
